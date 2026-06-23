@@ -2,108 +2,132 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '../AuthContext';
-import Dashboard     from '../pages/Dashboard';
-import UserDashboard from '../pages/UserDashboard';
 
-// ─── Écran de chargement ─────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Routes sans auth requise — accessibles sans connexion
+// ─────────────────────────────────────────────────────────────────────────────
+const PUBLIC_ROUTES = ['/preview'];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ✅ GUARD 1 — Route protégée : utilisateur connecté ET entreprise créée requis
+// Usage : <ProtectedRoute><Dashboard /></ProtectedRoute>
+// ─────────────────────────────────────────────────────────────────────────────
+export function ProtectedRoute({ children }) {
+  const { user, hasCompany, loading } = useAuth();
+  const location = useLocation();
+
+  if (PUBLIC_ROUTES.includes(location.pathname)) {
+    return children;
+  }
+
+  if (loading) return <AuthLoadingScreen />;
+
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // Connecté mais étape 2 (création entreprise) pas terminée
+  if (!hasCompany) {
+    return <Navigate to="/register/company" replace />;
+  }
+
+  return children;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ✅ GUARD 2 — Route par rôle : un des rôles autorisés requis (company_users.role)
+// Usage : <RoleRoute allow={['admin']}><Team /></RoleRoute>
+// Usage : <RoleRoute allow={['admin', 'manager']}><Invoices /></RoleRoute>
+// ─────────────────────────────────────────────────────────────────────────────
+export function RoleRoute({ children, allow = [] }) {
+  const { user, role, hasCompany, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) return <AuthLoadingScreen />;
+
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (!hasCompany) {
+    return <Navigate to="/register/company" replace />;
+  }
+
+  if (!allow.includes(role)) {
+    return <Navigate to="/dashboard?error=unauthorized" replace />;
+  }
+
+  return children;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ✅ GUARD 3 — Route publique uniquement (login, register étape 1)
+// Redirige vers /dashboard si déjà connecté ET déjà une entreprise,
+// vers /register/company si connecté mais sans entreprise.
+// Usage : <PublicOnlyRoute><Login /></PublicOnlyRoute>
+// ─────────────────────────────────────────────────────────────────────────────
+export function PublicOnlyRoute({ children }) {
+  const { user, hasCompany, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) return <AuthLoadingScreen />;
+
+  if (user) {
+    if (!hasCompany) {
+      return <Navigate to="/register/company" replace />;
+    }
+    const from = location.state?.from?.pathname || '/dashboard';
+    return <Navigate to={from} replace />;
+  }
+
+  return children;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ✅ GUARD 4 — Étape 2 inscription : connecté requis, mais PAS encore d'entreprise
+// Empêche d'accéder à /register/company si l'entreprise existe déjà.
+// Usage : <CompanySetupRoute><RegisterCompany /></CompanySetupRoute>
+// ─────────────────────────────────────────────────────────────────────────────
+export function CompanySetupRoute({ children }) {
+  const { user, hasCompany, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) return <AuthLoadingScreen />;
+
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (hasCompany) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return children;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Écran de chargement pendant la vérification de session
+// ─────────────────────────────────────────────────────────────────────────────
 function AuthLoadingScreen() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: '#060412',
+      background: '#0a0e1a',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
       gap: '14px',
     }}>
-      <img
-        src="/Logo_SocialApp.png"
-        alt="SocialApp"
-        style={{ width: 54, height: 54, borderRadius: 14, boxShadow: '0 8px 28px rgba(255,140,0,0.4)' }}
-      />
-      <Loader2 size={22} color="#ff8c00" className="animate-spin" />
+      <div style={{
+        fontSize: 22,
+        fontWeight: 700,
+        color: '#22c55e',
+        letterSpacing: '-0.02em',
+      }}>
+        FactureFlow
+      </div>
+      <Loader2 size={22} color="#22c55e" className="animate-spin" />
     </div>
   );
-}
-
-// ─── GUARD 1 — Utilisateur connecté requis ───────────────────────────────────
-export function ProtectedRoute({ children }) {
-  const { user, loading } = useAuth();
-  const location = useLocation();
-  if (loading) return <AuthLoadingScreen />;
-  if (!user)   return <Navigate to="/login" state={{ from: location }} replace />;
-  return children;
-}
-
-// ─── GUARD 2 — Rôle "admin" requis ───────────────────────────────────────────
-export function AdminRoute({ children }) {
-  const { user, isAdmin, loading } = useAuth();
-  const location = useLocation();
-
-  if (loading) return <AuthLoadingScreen />;
-
-  // ✅ Pas connecté → login
-  if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
-
-  // ✅ Connecté mais pas admin → page d'accès refusé (plus de redirect /dashboard
-  //    qui causait une boucle infinie sur admin.socialapp.work)
-  if (!isAdmin) {
-    return (
-      <div style={{
-        minHeight: '100vh',
-        background: '#060412',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: '16px',
-        padding: '24px',
-        textAlign: 'center',
-      }}>
-        <img
-          src="/Logo_SocialApp.png"
-          alt="SocialApp"
-          style={{ width: 54, height: 54, borderRadius: 14 }}
-        />
-        <div>
-          <h2 style={{ color: 'white', fontSize: '20px', fontWeight: 800, margin: '0 0 8px' }}>
-            Accès refusé
-          </h2>
-          <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '14px', margin: '0 0 20px' }}>
-            Vous n'avez pas les droits administrateur.
-          </p>
-          <a
-            href="https://socialapp.work/dashboard"
-            style={{
-              display: 'inline-block',
-              padding: '10px 20px',
-              background: 'linear-gradient(135deg,#6366f1,#8b5cf6)',
-              borderRadius: '10px',
-              color: 'white',
-              fontSize: '13px',
-              fontWeight: 600,
-              textDecoration: 'none',
-            }}
-          >
-            Retour à mon dashboard
-          </a>
-        </div>
-      </div>
-    );
-  }
-
-  return children;
-}
-
-// ─── GUARD 3 — Page publique uniquement (login) ──────────────────────────────
-export function PublicOnlyRoute({ children, redirectTo = '/dashboard' }) {
-  const { user, loading } = useAuth();
-  const location = useLocation();
-  if (loading) return <AuthLoadingScreen />;
-  if (user) {
-    const from = location.state?.from?.pathname || redirectTo;
-    return <Navigate to={from} replace />;
-  }
-  return children;
 }
