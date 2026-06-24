@@ -6,6 +6,7 @@ import {
 import Layout from '../components/Layout';
 import { useAuth } from '../AuthContext';
 import { supabase } from '../supabase';
+import SubscriptionPanel from '../components/SubscriptionPanel';
 
 const CURRENCIES = ['XOF', 'XAF', 'EUR', 'USD'];
 
@@ -216,6 +217,10 @@ export default function Settings() {
           {saving ? <Loader2 size={16} className="animate-spin" /> : <><Save size={16} /> Enregistrer</>}
         </button>
       </form>
+
+      <div style={{ marginTop: 22, maxWidth: 720 }}>
+        <SubscriptionPanel />
+      </div>
     </Layout>
   );
 }

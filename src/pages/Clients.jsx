@@ -207,6 +207,15 @@ function ClientModal({ mode, client, companyId, onClose, onSaved }) {
     setSaving(true);
     setError('');
 
+    if (mode === 'create') {
+      const { data: canCreate } = await supabase.rpc('can_create_client', { p_company_id: companyId });
+      if (canCreate === false) {
+        setSaving(false);
+        setError('Limite du plan Gratuit atteinte (10 clients maximum). Passez à un plan supérieur pour continuer.');
+        return;
+      }
+    }
+
     const payload = { ...form, company_id: companyId };
     const { error: saveError } = mode === 'create'
       ? await supabase.from('clients').insert(payload)
@@ -397,3 +406,4 @@ const styles = {
     borderRadius: 10, padding: '11px 0', fontSize: 13.5, fontWeight: 700, cursor: 'pointer',
   },
 };
+

@@ -1,7 +1,13 @@
 import { createClient } from '@supabase/supabase-js'
 
-const SUPABASE_URL = 'https://pufeqrduffcgneaxhuix.supabase.co'
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB1ZmVxcmR1ZmZjZ25lYXhodWl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4NjkxNDMsImV4cCI6MjA5NzQ0NTE0M30.bZssyjOpEcG6EHg1zfriAhWiW1_ez8p3milbL_AR8M8'
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+if (!SUPABASE_URL || !SUPABASE_KEY) {
+  throw new Error(
+    "Variables d'environnement Supabase manquantes. Vérifiez VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY dans .env.local (dev) ou les variables d'environnement Vercel (prod)."
+  )
+}
 
 // Contournement d'un bug connu de @supabase/supabase-js (issues GitHub #1517,
 // #936, #1594, #1620, #2111) : le mécanisme interne de verrou navigator.locks

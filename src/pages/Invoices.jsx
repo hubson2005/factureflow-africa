@@ -336,6 +336,13 @@ function InvoiceModal({ mode, invoice, company, clients, onClose, onSaved }) {
     let invoiceId = invoice?.id;
 
     if (mode === 'create') {
+      const { data: canCreate } = await supabase.rpc('can_create_invoice', { p_company_id: company.id });
+      if (canCreate === false) {
+        setSaving(false);
+        setError('Limite du plan Gratuit atteinte (10 factures par mois). Passez à un plan supérieur pour continuer.');
+        return;
+      }
+
       const { data: number } = await supabase.rpc('generate_invoice_number', { p_company_id: company.id });
       const { data: newInvoice, error: insertError } = await supabase
         .from('invoices')
@@ -653,3 +660,4 @@ const styles = {
     borderRadius: 10, padding: '11px 0', fontSize: 13.5, fontWeight: 700, cursor: 'pointer',
   },
 };
+

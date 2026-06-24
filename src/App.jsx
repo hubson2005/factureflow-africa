@@ -13,6 +13,7 @@ import Invoices from "./pages/Invoices";
 import Payments from "./pages/Payments";
 import Team from "./pages/Team";
 import Settings from "./pages/Settings";
+import PlatformAdmin from "./pages/PlatformAdmin";
 
 import {
   ProtectedRoute,
@@ -59,6 +60,11 @@ export default function App() {
 
         {/* Page publique d'invitation — accessible connecté ou non */}
         <Route path="/join/:token" element={<AcceptInvite />} />
+
+        {/* Dashboard super admin plateforme — accès vérifié dans le composant
+            (pas de ProtectedRoute classique car un platform_admin n'a pas
+            forcément d'entreprise cliente associée) */}
+        <Route path="/admin" element={<PlatformAdmin />} />
 
         <Route
           path="/dashboard"
