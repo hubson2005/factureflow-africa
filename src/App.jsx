@@ -1,6 +1,5 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./AuthContext";
-
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import RegisterCompany from "./pages/RegisterCompany";
@@ -14,7 +13,7 @@ import Payments from "./pages/Payments";
 import Team from "./pages/Team";
 import Settings from "./pages/Settings";
 import PlatformAdmin from "./pages/PlatformAdmin";
-
+import DashboardLayout from "./layouts/DashboardLayout";
 import {
   ProtectedRoute,
   PublicOnlyRoute,
@@ -30,7 +29,6 @@ export default function App() {
           path="/"
           element={<Navigate to="/dashboard" replace />}
         />
-
         <Route
           path="/login"
           element={
@@ -39,7 +37,6 @@ export default function App() {
             </PublicOnlyRoute>
           }
         />
-
         <Route
           path="/register"
           element={
@@ -48,7 +45,6 @@ export default function App() {
             </PublicOnlyRoute>
           }
         />
-
         <Route
           path="/register/company"
           element={
@@ -57,47 +53,40 @@ export default function App() {
             </CompanySetupRoute>
           }
         />
-
         {/* Page publique d'invitation — accessible connecté ou non */}
         <Route path="/join/:token" element={<AcceptInvite />} />
-
         {/* Dashboard super admin plateforme — accès vérifié dans le composant
             (pas de ProtectedRoute classique car un platform_admin n'a pas
             forcément d'entreprise cliente associée) */}
         <Route path="/admin" element={<PlatformAdmin />} />
 
+        {/* Pages protégées partageant la sidebar / bottom nav (DashboardLayout) */}
         <Route
-          path="/dashboard"
           element={
             <ProtectedRoute>
-              <Dashboard />
+              <DashboardLayout />
             </ProtectedRoute>
           }
-        />
+        >
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/clients" element={<Clients />} />
+          <Route path="/products" element={<Products />} />
+          <Route path="/quotes" element={<Quotes />} />
+          <Route path="/invoices" element={<Invoices />} />
+          <Route path="/payments" element={<Payments />} />
+        </Route>
 
-        <Route path="/clients" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
-        <Route path="/products" element={<ProtectedRoute><Products /></ProtectedRoute>} />
-        <Route path="/quotes" element={<ProtectedRoute><Quotes /></ProtectedRoute>} />
-        <Route path="/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
-        <Route path="/payments" element={<ProtectedRoute><Payments /></ProtectedRoute>} />
-
-        {/* Gestion d'équipe et paramètres réservés à l'admin (gestion utilisateurs/abonnements) */}
+        {/* Gestion d'équipe et paramètres réservés à l'admin — même layout, garde par rôle */}
         <Route
-          path="/team"
           element={
             <RoleRoute allow={["admin"]}>
-              <Team />
+              <DashboardLayout />
             </RoleRoute>
           }
-        />
-        <Route
-          path="/settings"
-          element={
-            <RoleRoute allow={["admin"]}>
-              <Settings />
-            </RoleRoute>
-          }
-        />
+        >
+          <Route path="/team" element={<Team />} />
+          <Route path="/settings" element={<Settings />} />
+        </Route>
 
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

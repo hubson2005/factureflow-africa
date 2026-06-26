@@ -1,0 +1,37 @@
+.ff-app { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #F8FAFA; min-height: 100vh; }
+.ff-layout { display: flex; }
+.ff-sidebar { display: none; }
+.ff-main { flex: 1; min-width: 0; }
+.ff-main-inner { max-width: 1200px; padding: 18px 16px 100px; display: flex; flex-direction: column; gap: 18px; }
+.ff-bottomnav { display: flex; position: fixed; bottom: 0; left: 0; right: 0; }
+
+.ff-hamburger-wrap { display: block; }
+.ff-search-wrap { display: none; }
+.ff-search-icon-wrap { display: block; }
+.ff-chat-wrap { display: none; }
+.ff-new-invoice-wrap { display: none; }
+
+.ff-mobile-only { display: block; }
+.ff-desktop-only { display: none; }
+
+.ff-row3 { display: flex; flex-direction: column; gap: 16px; }
+
+.ff-card { transition: box-shadow 220ms ease, transform 220ms ease; }
+.ff-card:hover { box-shadow: 0 2px 4px rgba(15,18,20,0.06), 0 8px 20px rgba(15,18,20,0.08); }
+
+@media (min-width: 768px) {
+  .ff-search-wrap { display: block; }
+  .ff-search-icon-wrap { display: none; }
+  .ff-chat-wrap { display: block; }
+  .ff-new-invoice-wrap { display: block; }
+}
+@media (min-width: 1024px) {
+  .ff-sidebar { display: flex; }
+  .ff-bottomnav { display: none; }
+  .ff-hamburger-wrap { display: none; }
+  .ff-main-inner { padding: 24px 32px 32px; }
+  .ff-mobile-only { display: none; }
+  .ff-desktop-only { display: block; }
+  .ff-row3 { flex-direction: row; align-items: stretch; }
+  .ff-row3 > * { flex: 1; min-width: 0; }
+}

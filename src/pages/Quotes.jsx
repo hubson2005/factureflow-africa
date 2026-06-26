@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Search, Plus, Pencil, Trash2, Copy, X, Loader2, AlertCircle,
   FileText, ArrowRightCircle, ChevronDown, Download,
@@ -264,27 +265,62 @@ function StatusBadge({ status }) {
 
 function StatusDropdown({ current, onChange }) {
   const [open, setOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
+  const buttonRef = useRef(null);
   const meta = STATUS_META[current] || STATUS_META.brouillon;
 
+  const handleToggle = () => {
+    if (!open && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      const menuHeight = STATUS_ORDER.length * 34 + 12; // estimation hauteur menu
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const openUpward = spaceBelow < menuHeight;
+      setMenuPos({
+        top: openUpward ? rect.top - menuHeight - 4 : rect.bottom + 4,
+        left: rect.left,
+      });
+    }
+    setOpen((o) => !o);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const closeOnScrollOrClick = () => setOpen(false);
+    window.addEventListener('scroll', closeOnScrollOrClick, true);
+    window.addEventListener('resize', closeOnScrollOrClick);
+    return () => {
+      window.removeEventListener('scroll', closeOnScrollOrClick, true);
+      window.removeEventListener('resize', closeOnScrollOrClick);
+    };
+  }, [open]);
+
   return (
-    <div style={{ position: 'relative' }}>
-      <button onClick={() => setOpen((o) => !o)} style={{ ...styles.statusBadge, color: meta.color, background: meta.bg, display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', border: 'none' }}>
+    <>
+      <button
+        ref={buttonRef}
+        onClick={handleToggle}
+        style={{ ...styles.statusBadge, color: meta.color, background: meta.bg, display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', border: 'none' }}
+      >
         {meta.label} <ChevronDown size={11} />
       </button>
-      {open && (
-        <div style={styles.statusMenu}>
-          {STATUS_ORDER.map((s) => (
-            <button
-              key={s}
-              onClick={() => { onChange(s); setOpen(false); }}
-              style={{ ...styles.statusMenuItem, color: STATUS_META[s].color }}
-            >
-              {STATUS_META[s].label}
-            </button>
-          ))}
-        </div>
+      {open && createPortal(
+        <>
+          <div style={styles.statusMenuOverlay} onClick={() => setOpen(false)} />
+          <div style={{ ...styles.statusMenu, top: menuPos.top, left: menuPos.left }}>
+            {STATUS_ORDER.map((s) => (
+              <button
+                key={s}
+                onClick={() => { onChange(s); setOpen(false); }}
+                style={{ ...styles.statusMenuItem, color: STATUS_META[s].color }}
+              >
+                {STATUS_META[s].label}
+              </button>
+            ))}
+          </div>
+        </>,
+        document.body
       )}
-    </div>
+    </>
   );
 }
 
@@ -595,13 +631,16 @@ const styles = {
   },
   tableRow: { display: 'flex', alignItems: 'center', padding: '14px 18px', borderBottom: '1px solid #1f2940' },
   statusBadge: { fontSize: 12, fontWeight: 600, padding: '4px 11px', borderRadius: 100, display: 'inline-block' },
+  statusMenuOverlay: {
+    position: 'fixed', inset: 0, zIndex: 999,
+  },
   statusMenu: {
-    position: 'absolute', top: '110%', left: 0, background: '#1a2238', border: '1px solid #2a3550',
-    borderRadius: 10, padding: 6, zIndex: 50, minWidth: 130, boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+    position: 'fixed', background: '#1a2238', border: '1px solid #2a3550',
+    borderRadius: 10, padding: 6, zIndex: 1000, minWidth: 150, boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
   },
   statusMenuItem: {
     display: 'block', width: '100%', textAlign: 'left', background: 'none', border: 'none',
-    padding: '7px 10px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', borderRadius: 6,
+    padding: '8px 11px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', borderRadius: 6,
   },
   iconBtn: {
     background: 'rgba(255,255,255,0.04)', border: '1px solid #1f2940', color: '#aab2c5',

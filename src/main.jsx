@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { HelmetProvider } from 'react-helmet-async' // ✅ FIX 8 : import HelmetProvider
 import App from './App'
 import './index.css'
-import './i18n';
+import './styles/design-tokens.css';
 
 const queryClient = new QueryClient()
 

@@ -107,9 +107,9 @@ export async function generateDocumentPdf({ type, company, client, document, ite
       return [
         it.description,
         String(it.quantity),
-        `${Number(it.unit_price).toLocaleString('fr-FR')} ${currency}`,
+        `${formatMoney(it.unit_price)} ${currency}`,
         `${it.tax_rate}%`,
-        `${lineTotal.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} ${currency}`,
+        `${formatMoney(lineTotal)} ${currency}`,
       ];
     }),
     margin: { left: margin, right: margin },
@@ -133,13 +133,13 @@ export async function generateDocumentPdf({ type, company, client, document, ite
   doc.setTextColor(...GRAY);
   doc.text('Sous-total', totalsX, finalY);
   doc.setTextColor(...DARK);
-  doc.text(`${Number(document.subtotal).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} ${currency}`, pageWidth - margin, finalY, { align: 'right' });
+  doc.text(`${formatMoney(document.subtotal)} ${currency}`, pageWidth - margin, finalY, { align: 'right' });
 
   finalY += 6;
   doc.setTextColor(...GRAY);
   doc.text('TVA', totalsX, finalY);
   doc.setTextColor(...DARK);
-  doc.text(`${Number(document.tax_total).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} ${currency}`, pageWidth - margin, finalY, { align: 'right' });
+  doc.text(`${formatMoney(document.tax_total)} ${currency}`, pageWidth - margin, finalY, { align: 'right' });
 
   finalY += 8;
   doc.setDrawColor(...GREEN);
@@ -150,7 +150,7 @@ export async function generateDocumentPdf({ type, company, client, document, ite
   doc.setFontSize(12);
   doc.setTextColor(...GREEN);
   doc.text('TOTAL', totalsX, finalY);
-  doc.text(`${Number(document.total).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} ${currency}`, pageWidth - margin, finalY, { align: 'right' });
+  doc.text(`${formatMoney(document.total)} ${currency}`, pageWidth - margin, finalY, { align: 'right' });
 
   // ── Résumé paiement (factures uniquement) ──
   if (paymentSummary) {
@@ -160,14 +160,14 @@ export async function generateDocumentPdf({ type, company, client, document, ite
     doc.setTextColor(...GRAY);
     doc.text('Montant payé', totalsX, finalY);
     doc.setTextColor(...DARK);
-    doc.text(`${Number(paymentSummary.amountPaid).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} ${currency}`, pageWidth - margin, finalY, { align: 'right' });
+    doc.text(`${formatMoney(paymentSummary.amountPaid)} ${currency}`, pageWidth - margin, finalY, { align: 'right' });
 
     finalY += 6;
     doc.setTextColor(...GRAY);
     doc.text('Reste à payer', totalsX, finalY);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(Number(paymentSummary.amountDue) > 0 ? 249 : 34, Number(paymentSummary.amountDue) > 0 ? 115 : 197, Number(paymentSummary.amountDue) > 0 ? 22 : 94);
-    doc.text(`${Number(paymentSummary.amountDue).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} ${currency}`, pageWidth - margin, finalY, { align: 'right' });
+    doc.text(`${formatMoney(paymentSummary.amountDue)} ${currency}`, pageWidth - margin, finalY, { align: 'right' });
   }
 
   // ── Notes ──
@@ -210,6 +210,16 @@ function formatDate(dateStr) {
   if (!dateStr) return '';
   const d = new Date(dateStr);
   return d.toLocaleDateString('fr-FR');
+}
+
+// toLocaleString('fr-FR') insère un caractère "espace fine insécable" (U+202F)
+// comme séparateur de milliers. La police Helvetica intégrée à jsPDF ne le
+// supporte pas et l'affiche comme un caractère cassé (visuellement un "/").
+// On le remplace par un espace normal, visuellement identique mais compatible.
+function formatMoney(value, options = {}) {
+  return Number(value)
+    .toLocaleString('fr-FR', { maximumFractionDigits: 0, ...options })
+    .replace(/[\u202F\u00A0]/g, ' ');
 }
 
 function loadImageAsDataUrl(url) {
