@@ -1,17 +1,10 @@
-import React from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
-import { useAuth } from '../AuthContext';
+import React from "react";
+import { Navigate, useLocation } from "react-router-dom";
+import { Loader2 } from "lucide-react";
+import { useAuth } from "../AuthContext";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Routes sans auth requise — accessibles sans connexion
-// ─────────────────────────────────────────────────────────────────────────────
-const PUBLIC_ROUTES = ['/preview'];
+const PUBLIC_ROUTES = ["/preview"];
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ✅ GUARD 1 — Route protégée : utilisateur connecté ET entreprise créée requis
-// Usage : <ProtectedRoute><Dashboard /></ProtectedRoute>
-// ─────────────────────────────────────────────────────────────────────────────
 export function ProtectedRoute({ children }) {
   const { user, hasCompany, loading } = useAuth();
   const location = useLocation();
@@ -26,7 +19,6 @@ export function ProtectedRoute({ children }) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Connecté mais étape 2 (création entreprise) pas terminée
   if (!hasCompany) {
     return <Navigate to="/register/company" replace />;
   }
@@ -34,11 +26,6 @@ export function ProtectedRoute({ children }) {
   return children;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ✅ GUARD 2 — Route par rôle : un des rôles autorisés requis (company_users.role)
-// Usage : <RoleRoute allow={['admin']}><Team /></RoleRoute>
-// Usage : <RoleRoute allow={['admin', 'manager']}><Invoices /></RoleRoute>
-// ─────────────────────────────────────────────────────────────────────────────
 export function RoleRoute({ children, allow = [] }) {
   const { user, role, hasCompany, loading } = useAuth();
   const location = useLocation();
@@ -60,12 +47,6 @@ export function RoleRoute({ children, allow = [] }) {
   return children;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ✅ GUARD 3 — Route publique uniquement (login, register étape 1)
-// Redirige vers /dashboard si déjà connecté ET déjà une entreprise,
-// vers /register/company si connecté mais sans entreprise.
-// Usage : <PublicOnlyRoute><Login /></PublicOnlyRoute>
-// ─────────────────────────────────────────────────────────────────────────────
 export function PublicOnlyRoute({ children }) {
   const { user, hasCompany, loading } = useAuth();
   const location = useLocation();
@@ -76,18 +57,13 @@ export function PublicOnlyRoute({ children }) {
     if (!hasCompany) {
       return <Navigate to="/register/company" replace />;
     }
-    const from = location.state?.from?.pathname || '/dashboard';
+    const from = location.state?.from?.pathname || "/dashboard";
     return <Navigate to={from} replace />;
   }
 
   return children;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ✅ GUARD 4 — Étape 2 inscription : connecté requis, mais PAS encore d'entreprise
-// Empêche d'accéder à /register/company si l'entreprise existe déjà.
-// Usage : <CompanySetupRoute><RegisterCompany /></CompanySetupRoute>
-// ─────────────────────────────────────────────────────────────────────────────
 export function CompanySetupRoute({ children }) {
   const { user, hasCompany, loading } = useAuth();
   const location = useLocation();
@@ -105,29 +81,31 @@ export function CompanySetupRoute({ children }) {
   return children;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Écran de chargement pendant la vérification de session
-// ─────────────────────────────────────────────────────────────────────────────
 function AuthLoadingScreen() {
   return (
     <div style={{
-      minHeight: '100vh',
-      background: '#0a0e1a',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: '14px',
+      minHeight: "100vh",
+      background: "#F8FAFA",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: "14px",
+      fontFamily: "'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",
     }}>
+     <img
+  src="/icon-192.png"
+  alt="FactureFlow Africa"
+  style={{ width: 52, height: 52, borderRadius: 12, objectFit: "cover" }}
+/>
       <div style={{
-        fontSize: 22,
+        fontSize: 16,
         fontWeight: 700,
-        color: '#22c55e',
-        letterSpacing: '-0.02em',
+        color: "#14181A",
       }}>
-        FactureFlow
+        FactureFlow <span style={{ color: "#F97316" }}>Africa</span>
       </div>
-      <Loader2 size={22} color="#22c55e" className="animate-spin" />
+      <Loader2 size={20} color="#F97316" className="animate-spin" />
     </div>
   );
 }

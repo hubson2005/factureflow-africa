@@ -1,19 +1,16 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+﻿import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from './supabase';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [company, setCompany] = useState(null); // { id, name, ... } de companies
-  const [role, setRole] = useState(null); // 'admin' | 'manager' | 'comptable' | null
+  const [company, setCompany] = useState(null);
+  const [role, setRole] = useState(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
-  // Charge l'entreprise + le rôle de l'utilisateur courant depuis company_users.
-  // IMPORTANT: en cas d'erreur réseau/lock transitoire, on NE touche PAS à l'état
-  // existant (company/role) — on ne l'écrase que si la requête a réellement réussi
-  // et n'a rien trouvé. Ça évite qu'un TOKEN_REFRESHED qui échoue ponctuellement
-  // déconnecte l'utilisateur de son entreprise alors qu'elle existe bien en base.
   const loadCompanyContext = useCallback(async (currentUser) => {
     if (!currentUser) {
       setCompany(null);
@@ -29,8 +26,8 @@ export function AuthProvider({ children }) {
       .maybeSingle();
 
     if (error) {
-      console.error('[Auth] Erreur chargement entreprise (état conservé):', error.message);
-      return; // ne pas écraser l'état existant sur une erreur transitoire
+      console.error('[Auth] Erreur chargement entreprise (etat conserve):', error.message);
+      return;
     }
 
     if (!data) {
@@ -50,12 +47,19 @@ export function AuthProvider({ children }) {
       async (event, session) => {
         if (!mounted) return;
 
+        // Ne jamais logger session en entier : contient access_token / refresh_token en clair.
+        if (import.meta.env.DEV) {
+          console.log('[AUTH EVENT]', event, { userId: session?.user?.id ?? null });
+        }
+
         if (event === 'PASSWORD_RECOVERY') {
           setUser(null);
           setCompany(null);
           setRole(null);
           setLoading(false);
-          window.location.href = '/reset-password';
+          if (window.location.pathname !== '/reset-password') {
+            navigate('/reset-password', { replace: true });
+          }
           return;
         }
 
@@ -78,9 +82,6 @@ export function AuthProvider({ children }) {
       }
     );
 
-    // Filet de sécurité : si AUCUN event onAuthStateChange ne se déclenche du
-    // tout (cas anormal), on ne reste pas bloqué indéfiniment sur l'écran de
-    // chargement. 8s est largement supérieur au temps normal d'une requête.
     const safetyTimeout = setTimeout(() => {
       if (mounted) setLoading(false);
     }, 8000);
@@ -90,17 +91,32 @@ export function AuthProvider({ children }) {
       clearTimeout(safetyTimeout);
       subscription.unsubscribe();
     };
-  }, [loadCompanyContext]);
+  }, [loadCompanyContext, navigate]);
 
-  const signIn = (email, password) =>
-    supabase.auth.signInWithPassword({ email, password });
+  // CORRECTIF : supabase.auth.signInWithPassword() ne lève JAMAIS d'exception
+  // en cas d'identifiants invalides — l'erreur est renvoyée dans { error },
+  // pas levée. Sans ce throw, un login échoué résolvait silencieusement la
+  // promesse et Login.tsx naviguait quand même vers /dashboard avant d'être
+  // renvoyé vers /login au premier rechargement (aucune session en storage).
+  const signIn = async (email, password) => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    return data;
+  };
 
-  const signUp = (email, password, fullName) =>
-    supabase.auth.signUp({
+  // Même remarque pour signUp : signUp() ne throw pas non plus sur erreur
+  // (email déjà utilisé, mot de passe trop faible, etc.). On propage ici
+  // aussi pour que les appelants (formulaire d'inscription) puissent
+  // afficher l'erreur avec un simple try/catch, comme pour signIn.
+  const signUp = async (email, password, fullName) => {
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: { data: { full_name: fullName } },
     });
+    if (error) throw error;
+    return data;
+  };
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -109,8 +125,6 @@ export function AuthProvider({ children }) {
     setRole(null);
   };
 
-  // À appeler juste après l'étape 2 de l'inscription (création entreprise)
-  // pour rafraîchir le contexte sans attendre un nouvel event auth.
   const refreshCompanyContext = useCallback(async () => {
     if (user) await loadCompanyContext(user);
   }, [user, loadCompanyContext]);
@@ -142,6 +156,6 @@ export function AuthProvider({ children }) {
 
 export function useAuth() {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth doit être utilisé à l'intérieur de <AuthProvider>");
+  if (!ctx) throw new Error("useAuth doit etre utilise a l'interieur de <AuthProvider>");
   return ctx;
 }

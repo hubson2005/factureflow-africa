@@ -25,3 +25,19 @@ dist-ssr
 
 .vercel
 .env*.local
+
+.env.visual-test
+visual-test-output/
+
+.env.visual-test
+visual-test-output/
+
+# Scripts et rapports temporaires
+dead_files_report.txt
+remaining_report.txt
+suspect_imports_report.txt
+file_list.txt
+project_tree.txt
+.claude/
+visual-test-debug/
+visual-test-output/

@@ -2,7 +2,8 @@
 import {
   Wallet, FileText, ClipboardList, UserPlus, PackagePlus, Receipt, Users, Package,
   AlertCircle, CheckCircle2, Clock, LayoutDashboard, CreditCard, BarChart3, Sparkles,
-  Settings, Home, MoreHorizontal, Smartphone, Landmark, Banknote, Plus,
+  Settings, Home, MoreHorizontal, Smartphone, Landmark, Banknote, Plus, ShieldAlert, Zap,
+  TrendingUp, Palette, Repeat,
 } from "lucide-react";
 import type {
   Kpi, QuickAction, NavItem, RecentInvoice, TopClient, RecentPayment,
@@ -74,11 +75,15 @@ export const recentPayments: RecentPayment[] = [
 export const sidebarNav: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
   { icon: FileText, label: "Factures", path: "/invoices" },
+  { icon: Repeat, label: "Facturation récurrente", path: "/recurring-invoices" },
   { icon: ClipboardList, label: "Devis", path: "/quotes" },
   { icon: Users, label: "Clients", path: "/clients" },
   { icon: Package, label: "Produits", path: "/products" },
   { icon: CreditCard, label: "Paiements", path: "/payments" },
+  { icon: ShieldAlert, label: "Recouvrement IA", path: "/recovery", badge: "IA" },
+  { icon: Zap, label: "Automatisation", path: "/automation" },
   { icon: Receipt, label: "Dépenses", path: "/expenses" },
+  { icon: TrendingUp, label: "Trésorerie", path: "/cashflow", badge: "NOUVEAU" },
   { icon: BarChart3, label: "Rapports", path: "/reports" },
   { icon: Sparkles, label: "Assistant IA", path: "/assistant", badge: "NOUVEAU" },
   { icon: Settings, label: "Paramètres", path: "/settings" },

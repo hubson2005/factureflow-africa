@@ -1,0 +1,23 @@
+import type { Invoice } from "./invoices.types";
+export const demoInvoices: Invoice[] = [
+  { id:"1", code:"FACT-00254", clientName:"Orange Côte d'Ivoire", clientInitials:"OR", clientColor:"primary", amount:"150 000", status:"Payée", issueDate:"22 Juin 2026",
+    clientEmail:"contact@orange.ci", clientPhone:"+225 07 07 07 07 07", clientAddress:"Plateau, Abidjan, Côte d'Ivoire" },
+  { id:"2", code:"FACT-00253", clientName:"MTN CI", clientInitials:"MTN", clientColor:"yellow", amount:"250 000", status:"Impayée", issueDate:"21 Juin 2026", dueDate:"5 Juil 2026",
+    clientEmail:"contact@mtn.ci", clientPhone:"+225 05 05 05 05 05", clientAddress:"Marcory, Abidjan, Côte d'Ivoire" },
+  { id:"3", code:"FACT-00252", clientName:"SOTRA", clientInitials:"ST", clientColor:"blue", amount:"125 000", status:"Impayée", issueDate:"20 Juin 2026", dueDate:"4 Juil 2026",
+    clientEmail:"contact@sotra.ci", clientPhone:"+225 21 21 21 21 21", clientAddress:"Treichville, Abidjan, Côte d'Ivoire" },
+  { id:"4", code:"FACT-00251", clientName:"CNPS", clientInitials:"C", clientColor:"green", amount:"350 000", status:"Payée", issueDate:"20 Juin 2026",
+    clientEmail:"contact@cnps.ci", clientPhone:"+225 20 20 20 20 20", clientAddress:"Plateau, Abidjan, Côte d'Ivoire" },
+  { id:"5", code:"FACT-00250", clientName:"AGETU", clientInitials:"AG", clientColor:"purple", amount:"145 000", status:"Envoyée", issueDate:"19 Juin 2026", dueDate:"3 Juil 2026",
+    clientEmail:"contact@agetu.ci", clientPhone:"+225 22 22 22 22 22", clientAddress:"Adjamé, Abidjan, Côte d'Ivoire" },
+  { id:"6", code:"FACT-00249", clientName:"SIFCA Group", clientInitials:"SI", clientColor:"primary", amount:"780 000", status:"Payée", issueDate:"18 Juin 2026",
+    clientEmail:"contact@sifca.ci", clientPhone:"+225 27 27 27 27 27", clientAddress:"Cocody, Abidjan, Côte d'Ivoire" },
+  { id:"7", code:"FACT-00248", clientName:"NSIA Banque", clientInitials:"NS", clientColor:"blue", amount:"420 000", status:"Impayée", issueDate:"16 Juin 2026", dueDate:"30 Juin 2026",
+    clientEmail:"contact@nsiabanque.ci", clientPhone:"+225 20 30 30 30", clientAddress:"Plateau, Abidjan, Côte d'Ivoire" },
+  { id:"8", code:"FACT-00247", clientName:"Bolloré Transport", clientInitials:"BT", clientColor:"green", amount:"210 000", status:"Envoyée", issueDate:"15 Juin 2026", dueDate:"29 Juin 2026",
+    clientEmail:"contact@bollore-transport.ci", clientPhone:"+225 21 75 75 75", clientAddress:"Vridi, Abidjan, Côte d'Ivoire" },
+  { id:"9", code:"FACT-00246", clientName:"PALMCI", clientInitials:"PA", clientColor:"yellow", amount:"95 000", status:"Payée", issueDate:"12 Juin 2026",
+    clientEmail:"contact@palmci.ci", clientPhone:"+225 21 26 26 26", clientAddress:"Zone 4, Abidjan, Côte d'Ivoire" },
+  { id:"10", code:"FACT-00245", clientName:"Société Générale CI", clientInitials:"SG", clientColor:"purple", amount:"560 000", status:"Impayée", issueDate:"10 Juin 2026", dueDate:"24 Juin 2026",
+    clientEmail:"contact@sgci.ci", clientPhone:"+225 20 20 10 10", clientAddress:"Plateau, Abidjan, Côte d'Ivoire" },
+];
