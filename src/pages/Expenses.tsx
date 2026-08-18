@@ -4,6 +4,7 @@ import { palette, colors, radius, shadow } from "@/theme/tokens";
 import { Header } from "../components/shell/Header";
 import { useExpenses, useCreateExpense } from "../modules/expenses/useExpenses";
 import { NewExpenseForm } from "../modules/expenses/components/NewExpenseForm";
+import { useAutoOpenCreate } from "@/hooks/useAutoOpenCreate";
 
 const font = "'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif";
 
@@ -25,6 +26,10 @@ export default function Expenses() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("Toutes");
   const [showForm, setShowForm] = useState(false);
+
+  // Ouvre automatiquement ce formulaire si on arrive ici via le bouton "+" -> "Depense"
+  // du menu de creation rapide mobile (BottomNav).
+  useAutoOpenCreate(setShowForm);
 
   const filtered = useMemo(() => {
     if (!expenses) return [];

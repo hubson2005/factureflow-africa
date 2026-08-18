@@ -2,18 +2,24 @@ import React, { useMemo, useState } from "react";
 import { FilePlus, Loader2 } from "lucide-react";
 import { palette, colors, radius } from "@/theme/tokens";
 import { Header } from "../components/shell/Header";
-import { useQuotes, useCreateQuote, useUpdateQuoteStatus } from "../modules/quotes/useQuotes";
+import { useQuotes, useCreateQuote, useUpdateQuoteStatus, useSendQuote } from "../modules/quotes/useQuotes";
 import { QuoteCard } from "../modules/quotes/components/QuoteCard";
 import { QuotesToolbar } from "../modules/quotes/components/QuotesToolbar";
 import { NewQuoteForm } from "../modules/quotes/components/NewQuoteForm";
+import { useAutoOpenCreate } from "@/hooks/useAutoOpenCreate";
 
 export default function Quotes() {
   const { data: quotes, isLoading, isError } = useQuotes();
   const createQuote = useCreateQuote();
   const updateStatus = useUpdateQuoteStatus();
+  const sendQuote = useSendQuote();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("Tous");
   const [showForm, setShowForm] = useState(false);
+
+  // Ouvre automatiquement ce formulaire si on arrive ici via le bouton "+" -> "Devis"
+  // du menu de creation rapide mobile (BottomNav).
+  useAutoOpenCreate(setShowForm);
 
   const mapped = useMemo(() => {
     if (!quotes) return [];
@@ -46,7 +52,7 @@ export default function Quotes() {
   }
 
   function handleAccept(id) { updateStatus.mutate({ id, status: "accepte" }); }
-  function handleSend(id) { updateStatus.mutate({ id, status: "envoye" }); }
+  function handleSend(id) { return sendQuote.mutateAsync(id); }
   function handleRefuse(id) { updateStatus.mutate({ id, status: "refuse" }); }
 
   return (

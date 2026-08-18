@@ -8,6 +8,7 @@ import { ClientCard } from "../modules/clients/components/ClientCard";
 import { ClientsToolbar } from "../modules/clients/components/ClientsToolbar";
 import type { ClientFilter } from "../modules/clients/components/ClientsToolbar";
 import { NewClientForm } from "../modules/clients/components/NewClientForm";
+import { useAutoOpenCreate } from "@/hooks/useAutoOpenCreate";
 
 const PALETTE_ROTATION = ["primary","blue","green","purple","yellow","danger"] as const;
 
@@ -18,6 +19,10 @@ export default function Clients() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<ClientFilter>("Tous");
   const [showForm, setShowForm] = useState(false);
+
+  // Ouvre automatiquement ce formulaire si on arrive ici via le bouton "+" -> "Client"
+  // du menu de creation rapide mobile (BottomNav).
+  useAutoOpenCreate(setShowForm);
 
   const mapped = useMemo(() => {
     if (!clients) return [];

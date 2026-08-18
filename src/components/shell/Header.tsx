@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Bell, MessageSquare, Menu, Loader2, FileText, Users, Package } from "lucide-react";
+import { Search, Bell, MessageSquare, Loader2, FileText, Users, Package } from "lucide-react";
 import { palette, colors, radius } from "@/theme/tokens";
 import { useAuth } from "@/AuthContext";
 import { supabase } from "@/supabase";
@@ -225,7 +225,10 @@ export function Header({ title }: { title?: string }) {
     function handleKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        if (window.innerWidth < 768) {
+        // Seuil aligne sur celui de app-shell.css / Sidebar.tsx / BottomNav.tsx (1367px) :
+        // en dessous, .ff-search-wrap est cache par CSS donc inputRef n'est pas
+        // focusable - il faut ouvrir la recherche plein ecran a la place.
+        if (window.innerWidth < 1367) {
           setMobileSearchOpen(true);
         } else {
           inputRef.current?.focus();
@@ -241,11 +244,6 @@ export function Header({ title }: { title?: string }) {
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <div className="ff-hamburger-wrap">
-          <button style={{ display: "inline-flex", alignItems: "center", border: "none", background: "none", cursor: "pointer", padding: 4 }}>
-            <Menu size={22} color={colors.gray[900]} />
-          </button>
-        </div>
         <div>
           {title ? (
             <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: colors.gray[900] }}>{title}</p>

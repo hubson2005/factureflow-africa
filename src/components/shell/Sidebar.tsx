@@ -16,6 +16,29 @@ const SECTION_TITLE_COLOR = "rgba(255,255,255,0.85)"; // lisible sur fond orange
 const SCROLLBAR_THUMB = "rgba(255,255,255,0.35)";
 const SCROLLBAR_THUMB_HOVER = "rgba(255,255,255,0.55)";
 
+// Meme logique fiable que BottomNav.tsx : ne depend d'aucune classe CSS externe
+// pour decider si on doit s'afficher ou non.
+//
+// Seuil a 1367px : couvre telephones ET tablettes (portrait et paysage, jusqu'aux
+// plus grandes comme iPad Pro 12.9" en paysage a 1366px), qui utilisent toutes le
+// bottom nav plutot que la sidebar. Meme seuil que BottomNav.tsx - les deux ne
+// doivent jamais coexister ni laisser de zone morte entre eux.
+function useIsCompactLayout() {
+  const [isCompact, setIsCompact] = useState(
+    typeof window !== "undefined" ? window.innerWidth < 1367 : false
+  );
+
+  useEffect(() => {
+    function handleResize() {
+      setIsCompact(window.innerWidth < 1367);
+    }
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  return isCompact;
+}
+
 // Doit correspondre a la forme reelle des items exportes par dashboard.data.
 // Ajuste les champs optionnels si dashboard.data.ts en definit d'autres.
 interface NavItem {
@@ -64,6 +87,7 @@ export function Sidebar() {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const isCompact = useIsCompactLayout();
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -79,8 +103,27 @@ export function Sidebar() {
     navigate("/login");
   }
 
+  // La sidebar (ecrans larges, >=1367px) ne doit jamais coexister avec BottomNav
+  // (telephones + tablettes, <1367px) - meme seuil que BottomNav.tsx, verifie
+  // cote JS uniquement.
+  if (isCompact) return null;
+
   return (
-    <aside className="ff-sidebar" style={{ width: 240, display: "flex", flexDirection: "column", gap: 0, padding: "20px 14px 0", borderRight: `1px solid ${SIDEBAR_BORDER}`, background: SIDEBAR_BG, position: "sticky", top: 0, height: "100vh" }}>
+    <aside
+      className="ff-sidebar"
+      style={{
+        width: 240,
+        display: "flex",
+        flexDirection: "column",
+        gap: 0,
+        padding: "20px 14px 0",
+        borderRight: `1px solid ${SIDEBAR_BORDER}`,
+        background: SIDEBAR_BG,
+        position: "sticky",
+        top: 0,
+        height: "100vh",
+      }}
+    >
       <style>{`
         html, body, #root { margin: 0; padding: 0; height: 100%; }
         .ff-sidebar-nav::-webkit-scrollbar { width: 6px; }

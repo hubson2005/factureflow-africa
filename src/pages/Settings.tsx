@@ -36,7 +36,8 @@ function Field({ label, value, onChange, type="text", placeholder="" }: {
       <label style={{ fontSize:12.5, fontWeight:600, color:colors.gray[600] }}>{label}</label>
       <input type={type} value={value} onChange={(e)=>onChange(e.target.value)} placeholder={placeholder}
         style={{ padding:"11px 14px", borderRadius:radius.md, border:"1px solid "+colors.gray[200],
-          fontSize:14, fontFamily:font, color:colors.gray[900], outline:"none", background:colors.white }} />
+          fontSize:14, fontFamily:font, color:colors.gray[900], outline:"none", background:colors.white,
+          width:"100%", boxSizing:"border-box" }} />
     </div>
   );
 }
@@ -249,7 +250,6 @@ function ComplianceSection({ company }: any) {
   const isPlaceholder = (v: string) => v === "A_COMPLETER_NCC" || v === "A_COMPLETER_RCCM";
 
   function handleSaveCompliance() {
-    console.log("DEBUG handleSaveCompliance", { company, companyId: company?.company_id });
     updateCompliance.mutate(
       { companyId: company.company_id, countryCode, taxRegime, fiscalNumber, rccmNumber, capitalSocial },
       { onSuccess: () => { setSavedCompliance(true); setTimeout(() => setSavedCompliance(false), 2000); },
@@ -282,12 +282,13 @@ function ComplianceSection({ company }: any) {
           </div>
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <label style={{ fontSize: 12.5, fontWeight: 600, color: colors.gray[600] }}>Pays</label>
             <select value={countryCode} onChange={(e) => setCountryCode(e.target.value)}
               style={{ padding: "11px 14px", borderRadius: radius.md, border: "1px solid " + colors.gray[200],
-                fontSize: 14, fontFamily: font, color: colors.gray[900], outline: "none", background: colors.white }}>
+                fontSize: 14, fontFamily: font, color: colors.gray[900], outline: "none", background: colors.white,
+                width: "100%", boxSizing: "border-box" }}>
               <option value="">Sélectionner un pays</option>
               {configs.map((c: any) => <option key={c.country_code} value={c.country_code}>{c.country_name}</option>)}
             </select>
@@ -296,7 +297,8 @@ function ComplianceSection({ company }: any) {
             <label style={{ fontSize: 12.5, fontWeight: 600, color: colors.gray[600] }}>Régime fiscal</label>
             <select value={taxRegime} onChange={(e) => setTaxRegime(e.target.value)}
               style={{ padding: "11px 14px", borderRadius: radius.md, border: "1px solid " + colors.gray[200],
-                fontSize: 14, fontFamily: font, color: colors.gray[900], outline: "none", background: colors.white }}>
+                fontSize: 14, fontFamily: font, color: colors.gray[900], outline: "none", background: colors.white,
+                width: "100%", boxSizing: "border-box" }}>
               <option value="">Sélectionner un régime</option>
               {TAX_REGIMES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
             </select>
@@ -329,7 +331,7 @@ function ComplianceSection({ company }: any) {
             (statut "simulée" sur la facture, jamais confondu avec une vraie certification DGI).
           </p>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <label style={{ fontSize: 12.5, fontWeight: 600, color: colors.gray[600] }}>Mode</label>
             <div style={{ display: "flex", gap: 8 }}>
               {["test", "production"].map((m) => (
@@ -348,11 +350,11 @@ function ComplianceSection({ company }: any) {
             <label style={{ fontSize: 12.5, fontWeight: 600, color: colors.gray[600] }}>Clé API FNE</label>
             <div style={{ display: "flex", gap: 8 }}>
               <input type={showKey ? "text" : "password"} value={fneApiKey} onChange={(e) => setFneApiKey(e.target.value)}
-                placeholder="Obtenue après validation par la DGI" style={{ flex: 1, padding: "11px 14px", borderRadius: radius.md,
+                placeholder="Obtenue après validation par la DGI" style={{ flex: 1, minWidth: 0, padding: "11px 14px", borderRadius: radius.md,
                   border: "1px solid " + colors.gray[200], fontSize: 14, fontFamily: font, color: colors.gray[900],
                   outline: "none", background: colors.white }} />
               <button onClick={() => setShowKey(!showKey)} style={{ padding: "0 12px", borderRadius: radius.md,
-                border: "1px solid " + colors.gray[200], background: colors.white, cursor: "pointer" }}>
+                border: "1px solid " + colors.gray[200], background: colors.white, cursor: "pointer", flexShrink: 0 }}>
                 {showKey ? <EyeOff size={15} color={colors.gray[500]} /> : <Eye size={15} color={colors.gray[500]} />}
               </button>
             </div>
@@ -430,6 +432,50 @@ export default function Settings() {
 
   return (
     <>
+      <style>{`
+        /* Sous 1367px (telephones + tablettes, meme seuil que Sidebar/BottomNav) :
+           la liste d'onglets passe d'une colonne fixe de 200px a une rangee
+           horizontale scrollable au-dessus du contenu, pour eviter le texte tronque
+           observe quand les deux colonnes desktop sont compressees sur petit ecran. */
+        .ff-settings-layout {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+          align-items: stretch;
+        }
+        .ff-settings-tabs {
+          width: 100%;
+          flex-shrink: 0;
+          background: ${colors.white};
+          border-radius: ${radius.lg}px;
+          border: 1px solid ${colors.gray[100]};
+          box-shadow: ${shadow.card};
+          padding: 8px;
+          display: flex;
+          flex-direction: row;
+          gap: 2px;
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+        .ff-settings-tabs::-webkit-scrollbar { height: 4px; }
+        .ff-settings-tab-btn {
+          flex: 0 0 auto;
+          white-space: nowrap;
+        }
+        .ff-settings-content {
+          flex: 1;
+          min-width: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+        }
+        @media (min-width: 1367px) {
+          .ff-settings-layout { flex-direction: row; align-items: flex-start; }
+          .ff-settings-tabs { width: 200px; flex-direction: column; overflow-x: visible; }
+          .ff-settings-tab-btn { white-space: normal; }
+        }
+      `}</style>
+
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4 }}>
         <Header title="Parametres" />
         <button onClick={handleSave} style={{ display:"flex", alignItems:"center", gap:6, padding:"9px 14px",
@@ -441,16 +487,14 @@ export default function Settings() {
       </div>
 
 
-      <div style={{ display:"flex", gap:16, alignItems:"flex-start" }}>
-        {/* Tabs verticaux */}
-        <div style={{ width:200, flexShrink:0, background:colors.white, borderRadius:radius.lg,
-          border:"1px solid "+colors.gray[100], boxShadow:shadow.card, padding:8,
-          display:"flex", flexDirection:"column", gap:2 }}>
+      <div className="ff-settings-layout">
+        {/* Tabs */}
+        <div className="ff-settings-tabs">
           {TABS.map(t => {
             const isActive = activeTab === t.id;
             const Icon = t.icon;
             return (
-              <button key={t.id} onClick={()=> t.path ? navigate(t.path) : setActiveTab(t.id)} style={{
+              <button key={t.id} className="ff-settings-tab-btn" onClick={()=> t.path ? navigate(t.path) : setActiveTab(t.id)} style={{
                 display:"flex", alignItems:"center", gap:10, padding:"10px 12px",
                 borderRadius:radius.md, border:"none",
                 background: isActive ? palette.primary[50] : "transparent",
@@ -466,12 +510,12 @@ export default function Settings() {
 
 
         {/* Contenu */}
-        <div style={{ flex:1, minWidth:0, display:"flex", flexDirection:"column", gap:14 }}>
+        <div className="ff-settings-content">
 
 
           {activeTab === "entreprise" && (
             <Section title="Informations de l'entreprise">
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(220px, 1fr))", gap:14 }}>
                 <Field label="Nom de l'entreprise" value={companyName} onChange={setCompanyName} placeholder="Mon entreprise"/>
                 <Field label="Telephone" value={phone} onChange={setPhone} type="tel" placeholder="+225 07 00 00 00 00"/>
                 <Field label="Email" value={email} onChange={setEmail} type="email" placeholder="contact@entreprise.com"/>
@@ -489,12 +533,13 @@ export default function Settings() {
 
           {activeTab === "facturation" && (
             <Section title="Parametres financiers">
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(220px, 1fr))", gap:14 }}>
                 <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
                   <label style={{ fontSize:12.5, fontWeight:600, color:colors.gray[600] }}>Devise</label>
                   <select value={currency} onChange={(e)=>setCurrency(e.target.value)}
                     style={{ padding:"11px 14px", borderRadius:radius.md, border:"1px solid "+colors.gray[200],
-                      fontSize:14, fontFamily:font, color:colors.gray[900], outline:"none", background:colors.white }}>
+                      fontSize:14, fontFamily:font, color:colors.gray[900], outline:"none", background:colors.white,
+                      width:"100%", boxSizing:"border-box" }}>
                     <option value="XOF">XOF - Franc CFA</option>
                     <option value="EUR">EUR - Euro</option>
                     <option value="USD">USD - Dollar</option>
@@ -522,12 +567,12 @@ export default function Settings() {
                     fontWeight:700, fontSize:13, flexShrink:0 }}>
                     {m.name[0]}
                   </div>
-                  <div style={{ flex:1 }}>
+                  <div style={{ flex:1, minWidth:0 }}>
                     <p style={{ margin:0, fontSize:14, fontWeight:700, color:colors.gray[900] }}>{m.name}</p>
                     <p style={{ margin:0, fontSize:12, color:colors.gray[400] }}>{m.email}</p>
                   </div>
                   <span style={{ fontSize:11, fontWeight:700, padding:"3px 9px", borderRadius:radius.full,
-                    background:palette.primary[50], color:palette.primary.solid }}>{m.role}</span>
+                    background:palette.primary[50], color:palette.primary.solid, flexShrink:0 }}>{m.role}</span>
                 </div>
               ))}
               <button style={{ display:"flex", alignItems:"center", gap:6, padding:"10px 14px",

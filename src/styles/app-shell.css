@@ -1,35 +1,46 @@
 .ff-app { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #F8FAFA; min-height: 100vh; }
 .ff-layout { display: flex; }
-.ff-sidebar { display: none; }
+/* .ff-sidebar : visibilite geree par Sidebar.tsx (useIsMobile), plus par CSS.
+   Ne pas ajouter de display:none/flex ici - la coherence avec BottomNav.tsx
+   (meme seuil 768px, decide cote JS) doit rester la seule source de verite. */
 .ff-main { flex: 1; min-width: 0; }
-.ff-main-inner { max-width: 1200px; padding: 18px 16px 100px; display: flex; flex-direction: column; gap: 18px; }
-.ff-bottomnav { display: flex; position: fixed; bottom: 0; left: 0; right: 0; }
+.ff-main-inner { max-width: min(1600px, 96vw); padding: 18px 16px 100px; display: flex; flex-direction: column; gap: 18px; }
+/* .ff-bottomnav : idem, visibilite geree par BottomNav.tsx (useIsMobile). */
 
-.ff-hamburger-wrap { display: block; }
 .ff-search-wrap { display: none; }
 .ff-search-icon-wrap { display: block; }
 .ff-chat-wrap { display: none; }
 .ff-new-invoice-wrap { display: none; }
 
 .ff-mobile-only { display: block; }
-.ff-desktop-only { display: block; }
+.ff-desktop-only { display: none; }
 
 .ff-row3 { display: flex; flex-direction: column; gap: 16px; }
 
 .ff-card { transition: box-shadow 220ms ease, transform 220ms ease; }
 .ff-card:hover { box-shadow: 0 2px 4px rgba(15,18,20,0.06), 0 8px 20px rgba(15,18,20,0.08); }
 
-@media (min-width: 768px) {
+/* Palier tablette : entre 768 et 1366px, les cartes ff-row3 passent en grille 2 colonnes
+   au lieu de rester empilees verticalement. Coherent avec KpiSection.tsx qui bascule
+   deja en grille 2x2 des 768px (breakpoint "tablet" cote JS) — evite l'incoherence
+   visuelle ou les KPI sont en grille mais les rangees de cartes en dessous restent
+   empilees, gaspillant l'espace horizontal disponible sur tablette/petit laptop.
+   Ne touche pas au seuil 1367px ci-dessous, qui reste dedie a la nav (sidebar/recherche/chat). */
+@media (min-width: 768px) and (max-width: 1366px) {
+  .ff-row3 { flex-direction: row; flex-wrap: wrap; }
+  .ff-row3 > * { flex: 1 1 calc(50% - 8px); min-width: 280px; }
+}
+
+/* Seuil unique (1367px), aligne sur le seuil JS utilise par Sidebar.tsx et
+   BottomNav.tsx (useIsCompactLayout - couvre telephones ET tablettes jusqu'a
+   1366px). Garder un seul seuil partout evite de recreer un decalage/zone morte
+   entre la nav et ces autres elements (recherche, chat, bouton "nouvelle facture"). */
+@media (min-width: 1367px) {
   .ff-search-wrap { display: block; }
   .ff-search-icon-wrap { display: none; }
   .ff-chat-wrap { display: block; }
   .ff-new-invoice-wrap { display: block; }
-}
-@media (min-width: 1024px) {
-  .ff-sidebar { display: flex; }
-  .ff-bottomnav { display: none; }
-  .ff-hamburger-wrap { display: none; }
-  .ff-main-inner { padding: 24px 32px 32px; }
+  .ff-main-inner { max-width: min(1600px, 96vw); padding: 24px 32px 32px; }
   .ff-mobile-only { display: none; }
   .ff-desktop-only { display: block; }
   .ff-row3 { flex-direction: row; align-items: stretch; }

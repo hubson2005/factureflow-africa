@@ -25,6 +25,8 @@ export default function PlatformAdmin() {
   const [search, setSearch] = useState('');
   const [loadingData, setLoadingData] = useState(true);
   const [actionError, setActionError] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 5;
 
   const loadData = useCallback(async () => {
     setLoadingData(true);
@@ -98,6 +100,25 @@ export default function PlatformAdmin() {
     !search.trim() || c.name.toLowerCase().includes(search.toLowerCase())
   );
 
+  const totalPages = Math.max(1, Math.ceil(filteredCompanies.length / PAGE_SIZE));
+  const paginatedCompanies = filteredCompanies.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
+
+  // Revient a la page 1 quand la recherche change le nombre de resultats, pour
+  // eviter de rester bloque sur une page devenue vide.
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
+
+  // Si des entreprises sont chargees/rechargees et que la page courante depasse
+  // desormais le nombre total de pages (ex: apres une suspension qui ne change pas
+  // le compte, mais par prudence), on recale sur la derniere page valide.
+  useEffect(() => {
+    setCurrentPage((p) => Math.min(p, totalPages));
+  }, [totalPages]);
+
   if (checkingAccess) {
     return (
       <div style={styles.page}>
@@ -120,17 +141,51 @@ export default function PlatformAdmin() {
 
   return (
     <div style={styles.page}>
-      <header style={styles.header}>
+      <style>{`
+        /* Seuil dedie a cette page admin (640px) : le tableau devient une liste de
+           cartes empilees sur mobile/petit ecran, au lieu d'un tableau a 5 colonnes
+           fixes qui deborderait ou s'ecraserait illisible en dessous de cette largeur.
+           Flexbox + media queries standards, compatible identiquement sur Chrome,
+           Firefox, Safari et Edge. */
+        .ff-admin-header { flex-wrap: wrap; padding: 14px 16px; }
+        .ff-admin-main { padding: 18px 16px; }
+        .ff-admin-table-header { display: none; }
+        .ff-admin-row { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; border-bottom: 1px solid #1f2940; }
+        .ff-admin-cell { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+        .ff-admin-cell-actions { justify-content: flex-end; }
+        .ff-admin-label { display: inline-block; font-size: 11px; color: #5f6878; text-transform: uppercase; font-weight: 700; }
+        .ff-admin-signout-text { display: none; }
+
+        @media (min-width: 480px) {
+          .ff-admin-signout-text { display: inline; }
+        }
+
+        @media (min-width: 640px) {
+          .ff-admin-header { padding: 16px 32px; flex-wrap: nowrap; }
+          .ff-admin-main { padding: 28px 32px; }
+          .ff-admin-table-header { display: flex; }
+          .ff-admin-row { flex-direction: row; align-items: center; padding: 14px 18px; gap: 0; }
+          .ff-admin-cell { display: block; }
+          .ff-admin-label { display: none; }
+          .ff-admin-cell-name { flex: 1.6; }
+          .ff-admin-cell-plan { flex: 1; }
+          .ff-admin-cell-status { flex: 1; }
+          .ff-admin-cell-date { flex: 1; }
+          .ff-admin-cell-actions { flex: 1.4; }
+        }
+      `}</style>
+
+      <header className="ff-admin-header" style={styles.header}>
         <div style={styles.headerLeft}>
-          <div style={styles.logoBadge}>F</div>
+          <img src="/icon-192.png" alt="FactureFlow Africa" style={styles.logoBadge} />
           <span style={styles.headerTitle}>FactureFlow <span style={{ color: '#8b93a7' }}>Admin</span></span>
         </div>
         <button onClick={handleSignOut} style={styles.signOutBtn}>
-          <LogOut size={14} /> Déconnexion
+          <LogOut size={14} /> <span className="ff-admin-signout-text">Déconnexion</span>
         </button>
       </header>
 
-      <main style={styles.main}>
+      <main className="ff-admin-main" style={styles.main}>
         {loadingData ? (
           <div style={styles.loadingBox}><Loader2 size={20} className="animate-spin" color="#22c55e" /></div>
         ) : (
@@ -157,19 +212,23 @@ export default function PlatformAdmin() {
             </div>
 
             <div style={styles.table}>
-              <div style={styles.tableHeaderRow}>
+              <div className="ff-admin-table-header" style={styles.tableHeaderRow}>
                 <span style={{ flex: 1.6 }}>Entreprise</span>
                 <span style={{ flex: 1 }}>Plan</span>
                 <span style={{ flex: 1 }}>Statut</span>
                 <span style={{ flex: 1 }}>Créée le</span>
                 <span style={{ flex: 1.4, textAlign: 'right' }}>Actions</span>
               </div>
-              {filteredCompanies.map((c) => {
+              {paginatedCompanies.map((c) => {
                 const statusMeta = STATUS_META[c.subscription_status] || STATUS_META.trial;
                 return (
-                  <div key={c.id} style={styles.tableRow}>
-                    <span style={{ flex: 1.6, color: '#fff', fontWeight: 600, fontSize: 13.5 }}>{c.name}</span>
-                    <span style={{ flex: 1 }}>
+                  <div key={c.id} className="ff-admin-row">
+                    <div className="ff-admin-cell ff-admin-cell-name" style={{ color: '#fff', fontWeight: 600, fontSize: 15 }}>
+                      {c.name}
+                    </div>
+
+                    <div className="ff-admin-cell ff-admin-cell-plan">
+                      <span className="ff-admin-label">Plan</span>
                       <select
                         value={c.subscription_plan}
                         onChange={(e) => handlePlanChange(c, e.target.value)}
@@ -177,16 +236,23 @@ export default function PlatformAdmin() {
                       >
                         {Object.entries(PLAN_LABELS).map(([k, label]) => <option key={k} value={k}>{label}</option>)}
                       </select>
-                    </span>
-                    <span style={{ flex: 1 }}>
+                    </div>
+
+                    <div className="ff-admin-cell ff-admin-cell-status">
+                      <span className="ff-admin-label">Statut</span>
                       <span style={{ ...styles.statusBadge, color: statusMeta.color, background: `${statusMeta.color}1a` }}>
                         {statusMeta.label}
                       </span>
-                    </span>
-                    <span style={{ flex: 1, color: '#8b93a7', fontSize: 12.5 }}>
-                      {new Date(c.created_at).toLocaleDateString('fr-FR')}
-                    </span>
-                    <div style={{ flex: 1.4, display: 'flex', justifyContent: 'flex-end' }}>
+                    </div>
+
+                    <div className="ff-admin-cell ff-admin-cell-date">
+                      <span className="ff-admin-label">Créée le</span>
+                      <span style={{ color: '#8b93a7', fontSize: 12.5 }}>
+                        {new Date(c.created_at).toLocaleDateString('fr-FR')}
+                      </span>
+                    </div>
+
+                    <div className="ff-admin-cell ff-admin-cell-actions">
                       <button onClick={() => handleSuspend(c)} style={styles.actionBtn}>
                         {c.subscription_status === 'suspended' ? (
                           <><PlayCircle size={13} /> Réactiver</>
@@ -199,6 +265,35 @@ export default function PlatformAdmin() {
                 );
               })}
             </div>
+
+            {filteredCompanies.length > PAGE_SIZE && (
+              <div style={styles.pagination}>
+                <span style={styles.paginationInfo}>
+                  {(currentPage - 1) * PAGE_SIZE + 1}
+                  {"\u2013"}
+                  {Math.min(currentPage * PAGE_SIZE, filteredCompanies.length)}
+                  {" sur "}
+                  {filteredCompanies.length}
+                </span>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    style={{ ...styles.pageBtn, opacity: currentPage === 1 ? 0.4 : 1, cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
+                  >
+                    Précédent
+                  </button>
+                  <span style={styles.pageIndicator}>Page {currentPage} / {totalPages}</span>
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    style={{ ...styles.pageBtn, opacity: currentPage === totalPages ? 0.4 : 1, cursor: currentPage === totalPages ? 'not-allowed' : 'pointer' }}
+                  >
+                    Suivant
+                  </button>
+                </div>
+              </div>
+            )}
           </>
         )}
       </main>
@@ -222,41 +317,39 @@ const styles = {
   page: { minHeight: '100vh', background: '#0a0e1a', fontFamily: "'Sora','Segoe UI',sans-serif" },
   header: {
     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-    padding: '16px 32px', borderBottom: '1px solid #1f2940',
+    gap: 12, borderBottom: '1px solid #1f2940',
   },
-  headerLeft: { display: 'flex', alignItems: 'center', gap: 10 },
+  headerLeft: { display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 },
   logoBadge: {
-    width: 30, height: 30, borderRadius: 9, background: '#22c55e', color: '#06150c',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 14,
+    width: 30, height: 30, borderRadius: 9, objectFit: 'cover', flexShrink: 0,
   },
-  headerTitle: { color: '#fff', fontWeight: 700, fontSize: 16 },
+  headerTitle: { color: '#fff', fontWeight: 700, fontSize: 16, whiteSpace: 'nowrap' },
   signOutBtn: {
-    display: 'flex', alignItems: 'center', gap: 6,
+    display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0,
     background: 'none', border: '1px solid #1f2940', color: '#aab2c5',
     borderRadius: 8, padding: '8px 14px', fontSize: 12.5, cursor: 'pointer',
   },
-  main: { padding: '28px 32px' },
+  main: {},
   loadingBox: { display: 'flex', justifyContent: 'center', padding: 60 },
-  kpiGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 24 },
+  kpiGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 14, marginBottom: 24 },
   kpiCard: {
     background: '#11172a', border: '1px solid #1f2940', borderRadius: 14,
-    padding: 16, display: 'flex', alignItems: 'center', gap: 12,
+    padding: 16, display: 'flex', alignItems: 'center', gap: 12, minWidth: 0,
   },
   kpiIcon: { width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  kpiValue: { color: '#fff', fontSize: 17, fontWeight: 800 },
+  kpiValue: { color: '#fff', fontSize: 17, fontWeight: 800, whiteSpace: 'nowrap' },
   kpiLabel: { color: '#8b93a7', fontSize: 11.5, marginTop: 2 },
   searchBar: {
     display: 'flex', alignItems: 'center', gap: 10,
     background: '#11172a', border: '1px solid #1f2940', borderRadius: 12,
-    padding: '11px 16px', marginBottom: 18, maxWidth: 380,
+    padding: '11px 16px', marginBottom: 18, maxWidth: 380, boxSizing: 'border-box',
   },
-  searchInput: { flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#fff', fontSize: 14 },
+  searchInput: { flex: 1, minWidth: 0, background: 'transparent', border: 'none', outline: 'none', color: '#fff', fontSize: 14 },
   table: { background: '#11172a', border: '1px solid #1f2940', borderRadius: 14, overflow: 'hidden' },
   tableHeaderRow: {
-    display: 'flex', padding: '12px 18px', borderBottom: '1px solid #1f2940',
+    padding: '12px 18px', borderBottom: '1px solid #1f2940',
     color: '#5f6878', fontSize: 11.5, fontWeight: 700, textTransform: 'uppercase',
   },
-  tableRow: { display: 'flex', alignItems: 'center', padding: '14px 18px', borderBottom: '1px solid #1f2940' },
   planSelect: {
     background: '#0a0e1a', border: '1px solid #1f2940', borderRadius: 8,
     padding: '5px 9px', color: '#fff', fontSize: 12.5,
@@ -271,6 +364,16 @@ const styles = {
     background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
     color: '#f87171', borderRadius: 10, padding: '10px 14px', fontSize: 12.5, marginBottom: 16,
   },
+  pagination: {
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    flexWrap: 'wrap', gap: 12, marginTop: 16,
+  },
+  paginationInfo: { color: '#8b93a7', fontSize: 12.5 },
+  pageBtn: {
+    background: 'rgba(255,255,255,0.04)', border: '1px solid #1f2940', color: '#aab2c5',
+    borderRadius: 8, padding: '7px 14px', fontSize: 12.5,
+  },
+  pageIndicator: { color: '#fff', fontSize: 12.5, fontWeight: 600, padding: '0 4px', display: 'flex', alignItems: 'center' },
   deniedBox: { textAlign: 'center', maxWidth: 360 },
   deniedTitle: { color: '#fff', fontSize: 18, fontWeight: 700, marginTop: 14 },
   deniedText: { color: '#8b93a7', fontSize: 13.5, marginTop: 8 },
