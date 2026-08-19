@@ -53,9 +53,9 @@ function colorOf(name:string) {
   return colorsList[Math.abs(hash) % colorsList.length];
 }
 
-export function InvoiceCard({ invoice, onMarkPaid, onRemind, onCancel, cancelling, remindingId }: {
+export function InvoiceCard({ invoice, onMarkPaid, onRemind, onCancel, cancelling, remindingId, showFne }: {
   invoice:InvoiceCardData; onMarkPaid:(id:string, amountDue:number)=>void; onRemind:(id:string)=>void;
-  onCancel:(id:string, reason:string)=>void; cancelling?:boolean; remindingId?:string|null;
+  onCancel:(id:string, reason:string)=>void; cancelling?:boolean; remindingId?:string|null; showFne?:boolean;
 }) {
   const [tx, setTx] = useState(0);
   const [downloading, setDownloading] = useState(false);
@@ -158,7 +158,7 @@ export function InvoiceCard({ invoice, onMarkPaid, onRemind, onCancel, cancellin
           </div>
         )}
 
-        {invoice.fne?.fne_status && invoice.fne.fne_status !== "non_certifiee" && (
+        {showFne && invoice.fne?.fne_status && invoice.fne.fne_status !== "non_certifiee" && (
           <InvoiceFneVisual fne={invoice.fne} />
         )}
 
@@ -210,7 +210,7 @@ export function InvoiceCard({ invoice, onMarkPaid, onRemind, onCancel, cancellin
                   position:"absolute", top:36, right:0, zIndex:10, minWidth:170,
                   background:colors.white, borderRadius:radius.md, boxShadow:shadow.card,
                   border:"1px solid "+colors.gray[100], padding:4 }}>
-                  {(!invoice.fne?.fne_status || invoice.fne.fne_status === "non_certifiee" || invoice.fne.fne_status === "erreur") && (
+                  {showFne && (!invoice.fne?.fne_status || invoice.fne.fne_status === "non_certifiee" || invoice.fne.fne_status === "erreur") && (
                     <button
                       disabled={certifyFne.isPending}
                       onClick={handleCertifyFne}

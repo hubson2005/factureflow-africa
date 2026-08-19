@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { palette, colors, radius } from "@/theme/tokens";
 import { Header } from "../components/shell/Header";
 import { useInvoices, useCreateInvoice, useRecordPayment, useSendInvoiceReminder, useCancelInvoice } from "../modules/invoices/useInvoices";
+import { useCompany } from "../hooks/useCompany";
 import { InvoicesToolbar } from "../modules/invoices/components/InvoicesToolbar";
 import type { StatusFilter } from "../modules/invoices/components/InvoicesToolbar";
 import { InvoiceCard } from "../modules/invoices/components/InvoiceCard";
@@ -13,6 +14,12 @@ import { useAutoOpenCreate } from "@/hooks/useAutoOpenCreate";
 
 export default function Invoices() {
   const { data: invoices, isLoading, isError } = useInvoices();
+  const { data: company } = useCompany();
+  // La FNE (Facture Normalisee Electronique) est specifique a la DGI ivoirienne.
+  // Le bouton/visuel de certification ne doit apparaitre que pour ce pays,
+  // sinon on afficherait une option DGI a des entreprises du Senegal/Benin/
+  // Burkina Faso pour lesquelles elle n'a aucun sens.
+  const isCotedivoire = company?.companies?.country_code === "CI";
   const createInvoice = useCreateInvoice();
   const recordPayment = useRecordPayment();
   const sendReminder = useSendInvoiceReminder();
@@ -161,6 +168,7 @@ export default function Invoices() {
                 remindingId={remindingId}
                 onCancel={handleCancel}
                 cancelling={cancellingId === inv.id}
+                showFne={isCotedivoire}
               />
             ))}
           </div>

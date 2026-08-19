@@ -62,6 +62,11 @@ export function useCreateInvoice() {
         .single();
       if (invErr) throw invErr;
 
+      // tax_rate est explicitement mis a null (et non omis) : en PostgreSQL, une
+      // colonne omise recoit sa valeur DEFAULT (18.00 ici) AVANT que le trigger
+      // BEFORE INSERT trg_auto_fill_vat_rate ne s'execute, donc son check
+      // "if new.tax_rate is null" ne se declenche jamais si on omet la colonne.
+      // Verifie empiriquement en base le 19/08 (voir commentaire commit).
       const rows = items
         .filter((i) => i.description.trim() !== "" && i.unitPrice > 0)
         .map((i) => ({
@@ -69,6 +74,7 @@ export function useCreateInvoice() {
           description: i.description,
           quantity: i.qty,
           unit_price: i.unitPrice,
+          tax_rate: null,
           vat_rate_type: i.vatRateType || "normal",
           vat_exemption_reason: i.vatExemptionReason || null,
           line_total: i.qty * i.unitPrice,
