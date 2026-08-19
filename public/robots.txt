@@ -1,5 +1,5 @@
-# SocialApp — robots.txt
-# https://www.socialapp.work
+# FactureFlow Africa — robots.txt
+# https://facture.socialapp.work
 
 User-agent: *
 
@@ -9,4 +9,4 @@ Allow: /login
 Disallow: /dashboard
 Disallow: /admin
 
-Sitemap: https://www.socialapp.work/sitemap.xml
+Sitemap: https://facture.socialapp.work/sitemap.xml
