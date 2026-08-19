@@ -113,7 +113,7 @@ export default function Automation() {
       {showForm && <NewRuleForm onClose={() => setShowForm(false)} onSave={handleSave} saving={createRule.isPending} />}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, flexWrap: "wrap", gap: 8 }}>
         <Header title="Automatisation" />
-        <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {hasEmailRules && (
             <button onClick={handleSendEmails} disabled={sendQueuedEmails.isPending} style={{
               display: "flex", alignItems: "center", gap: 6, padding: "9px 14px",

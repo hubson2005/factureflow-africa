@@ -68,7 +68,7 @@ export default function Team() {
 
   return (
     <>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, flexWrap: "wrap", gap: 8 }}>
         <Header title="Equipe" />
         <button onClick={() => setShowInviteModal(true)} style={{
           display: "flex", alignItems: "center", gap: 6, padding: "9px 14px",
@@ -133,8 +133,9 @@ export default function Team() {
                 {invitations.map((inv) => (
                   <Row key={inv.id}>
                     <Cell flex={2}>
-                      <Mail size={14} color={P.gray[400]} />
-                      <span style={{ color: P.gray[600], fontSize: 12.5 }}>{inv.email}</span>
+                      <Mail size={14} color={P.gray[400]} style={{ flexShrink: 0 }} />
+                      <span style={{ color: P.gray[600], fontSize: 12.5, overflow: "hidden",
+                        textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>{inv.email}</span>
                     </Cell>
                     <Cell flex={1}>
                       <span style={{ display: "flex", alignItems: "center", gap: 6, color: P.gray[600], fontSize: 13 }}>
@@ -317,7 +318,7 @@ function Table({ children }) {
 function Row({ children }) {
   return (
     <div style={{ display: "flex", alignItems: "center", padding: "14px 18px",
-      borderBottom: "1px solid " + P.gray[100], gap: 8 }}>
+      borderBottom: "1px solid " + P.gray[100], gap: 8, flexWrap: "wrap" }}>
       {children}
     </div>
   );
@@ -325,7 +326,7 @@ function Row({ children }) {
 
 function Cell({ children, flex = 1, align = "left" }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, flex,
+    <div style={{ display: "flex", alignItems: "center", gap: 8, flex, minWidth: 0,
       justifyContent: align === "right" ? "flex-end" : "flex-start" }}>
       {children}
     </div>

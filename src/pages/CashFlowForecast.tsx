@@ -278,7 +278,7 @@ export default function CashFlowForecast() {
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, flexWrap: "wrap", gap: 8 }}>
         <Header title="Prévisions de trésorerie" />
-        <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <select value={days} onChange={(e) => setDays(Number(e.target.value))} style={{
             padding: "9px 12px", borderRadius: radius.md, border: "1px solid " + colors.gray[200],
             fontSize: 13, fontWeight: 600, fontFamily: font, color: colors.gray[700], background: colors.white,
@@ -324,7 +324,7 @@ export default function CashFlowForecast() {
           </div>
 
           {/* Modifier le solde actuel */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
             {balanceInput === null ? (
               <button onClick={() => setBalanceInput(String(summary?.solde_actuel ?? 0))} style={{
                 border: "none", background: "none", color: palette.primary.solid, fontSize: 12.5,
@@ -461,7 +461,7 @@ export default function CashFlowForecast() {
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {recurring.map((tx) => (
                   <div key={tx.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px",
-                    borderRadius: radius.md, border: "1px solid " + colors.gray[100] }}>
+                    borderRadius: radius.md, border: "1px solid " + colors.gray[100], flexWrap: "wrap" }}>
                     <div style={{ width: 8, height: 8, borderRadius: "50%",
                       background: tx.type === "income" ? palette.green.solid : palette.danger.solid, flexShrink: 0 }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
