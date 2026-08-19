@@ -1,51 +1,186 @@
-import React from "react";
-import { Link, useLocation } from "react-router-dom";
-import { ChevronDown, Plus, Zap } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { ChevronDown, LogOut } from "lucide-react";
 import { palette, colors, radius } from "@/theme/tokens";
 import { sidebarNav } from "@/modules/dashboard/dashboard.data";
-import { Button, Avatar } from "@/components/Primitives";
+import { Avatar } from "@/components/Primitives";
+import { supabase } from "@/supabase";
+
+const SIDEBAR_BG = "#F97316"; // orange
+const SIDEBAR_BORDER = "rgba(255,255,255,0.18)";
+const TEXT_ON_ORANGE = "#111111";
+const TEXT_ON_ORANGE_MUTED = "rgba(17,17,17,0.75)";
+const ACTIVE_BG = "#FFFFFF";
+const HOVER_BG = "rgba(255,255,255,0.18)";
+const SECTION_TITLE_COLOR = "rgba(255,255,255,0.85)"; // lisible sur fond orange
+const SCROLLBAR_THUMB = "rgba(255,255,255,0.35)";
+const SCROLLBAR_THUMB_HOVER = "rgba(255,255,255,0.55)";
+
+// Doit correspondre a la forme reelle des items exportes par dashboard.data.
+// Ajuste les champs optionnels si dashboard.data.ts en definit d'autres.
+interface NavItem {
+  label: string;
+  path?: string;
+  icon?: React.ComponentType<{ size?: number; color?: string }>;
+  badge?: string | number;
+}
+
+interface NavGroup {
+  title: string;
+  items: NavItem[];
+}
+
+// Regroupement visuel des items existants (base sur le label fourni par dashboard.data)
+const NAV_SECTIONS: { title: string; labels: string[] }[] = [
+  { title: "Général", labels: ["Dashboard"] },
+  { title: "Facturation", labels: ["Factures", "Facturation récurrente", "Devis"] },
+  { title: "Relations", labels: ["Clients", "Produits"] },
+  { title: "Finances", labels: ["Paiements", "Recouvrement IA", "Dépenses", "Trésorerie"] },
+  { title: "Pilotage", labels: ["Rapports", "Automatisation", "Assistant IA"] },
+  { title: "Système", labels: ["Paramètres"] },
+];
+
+// Libellés affiches différemment de ceux de dashboard.data
+const LABEL_OVERRIDES: Record<string, string> = { Dashboard: "Tableau de bord" };
+
+function groupNav(items: NavItem[]): NavGroup[] {
+  const byLabel = new Map(items.map((item) => [item.label, item]));
+  const used = new Set<string>();
+  const groups = NAV_SECTIONS.map((section) => {
+    const sectionItems = section.labels
+      .map((label) => byLabel.get(label))
+      .filter((item): item is NavItem => Boolean(item));
+    sectionItems.forEach((item) => used.add(item.label));
+    return { title: section.title, items: sectionItems };
+  }).filter((g) => g.items.length > 0);
+
+  const rest = items.filter((item) => !used.has(item.label));
+  if (rest.length) groups.push({ title: "Autres", items: rest });
+  return groups;
+}
 
 export function Sidebar() {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  async function handleLogout() {
+    setMenuOpen(false);
+    await supabase.auth.signOut();
+    navigate("/login");
+  }
 
   return (
-    <aside className="ff-sidebar" style={{ width: 240, flexDirection: "column", padding: "20px 14px", borderRight: `1px solid ${colors.gray[100]}`, background: colors.white, position: "sticky", top: 0, height: "100vh" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "4px 8px 20px" }}>
-        <div style={{ width: 36, height: 36, borderRadius: radius.md, background: palette.primary.solid, display: "flex", alignItems: "center", justifyContent: "center", color: colors.white, fontWeight: 800, fontSize: 16, flexShrink: 0 }}>F</div>
-        <div>
-          <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: colors.gray[900], lineHeight: "16px" }}>FactureFlow</p>
-          <p style={{ margin: 0, fontSize: 11, color: colors.gray[600] }}>Africa</p>
+    <aside className="ff-sidebar" style={{ width: 240, display: "flex", flexDirection: "column", gap: 0, padding: "20px 14px 0", borderRight: `1px solid ${SIDEBAR_BORDER}`, background: SIDEBAR_BG, position: "sticky", top: 0, height: "100vh" }}>
+      <style>{`
+        html, body, #root { margin: 0; padding: 0; height: 100%; }
+        .ff-sidebar-nav::-webkit-scrollbar { width: 6px; }
+        .ff-sidebar-nav::-webkit-scrollbar-track { background: transparent; }
+        .ff-sidebar-nav::-webkit-scrollbar-thumb { background: ${SCROLLBAR_THUMB}; border-radius: 10px; }
+        .ff-sidebar-nav::-webkit-scrollbar-thumb:hover { background: ${SCROLLBAR_THUMB_HOVER}; }
+      `}</style>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 8px", margin: "0 -14px 16px", background: colors.white }}>
+        <div style={{ padding: "0 14px", display: "flex", alignItems: "center", gap: 10 }}>
+          <img src="/icon-192.png" alt="FactureFlow Africa" style={{ width: 36, height: 36, borderRadius: radius.md, flexShrink: 0, objectFit: "cover" }} />
+          <div>
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: colors.gray[900], lineHeight: "16px" }}>FactureFlow</p>
+            <p style={{ margin: 0, fontSize: 11, color: colors.gray[600] }}>Africa</p>
+          </div>
         </div>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1 }}>
-        {sidebarNav.map((item) => {
-          const isActive = item.path ? pathname.startsWith(item.path) : false;
-          const Icon = item.icon;
-          return (
-            <Link key={item.label} to={item.path ?? "#"} style={{
-              display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: radius.md,
-              background: isActive ? palette.primary[50] : "transparent", color: isActive ? palette.primary.text : colors.gray[600],
-              fontSize: 13.5, fontWeight: 600, textDecoration: "none",
-            }}>
-              <Icon size={17} />
-              {item.label}
-              {item.badge && <span style={{ marginLeft: "auto", fontSize: 9.5, fontWeight: 700, color: palette.green.solid, background: palette.green[50], padding: "2px 6px", borderRadius: radius.full }}>{item.badge}</span>}
-            </Link>
-          );
-        })}
+
+      <div
+        className="ff-sidebar-nav"
+        style={{
+          display: "flex", flexDirection: "column", gap: 14, flex: 1, overflowY: "auto",
+          paddingRight: 8,
+          scrollbarWidth: "thin", scrollbarColor: `${SCROLLBAR_THUMB} transparent`,
+        }}
+      >
+        {groupNav(sidebarNav).map((group) => (
+          <div key={group.title} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <p style={{
+              margin: "0 0 2px", padding: "0 12px", fontSize: 10.5, fontWeight: 700,
+              letterSpacing: "0.06em", textTransform: "uppercase", color: SECTION_TITLE_COLOR,
+            }}>{group.title}</p>
+            {group.items.map((item) => {
+              const isActive = item.path ? pathname.startsWith(item.path) : false;
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.label}
+                  to={item.path ?? "#"}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: radius.md,
+                    background: isActive ? ACTIVE_BG : "transparent",
+                    color: isActive ? SIDEBAR_BG : TEXT_ON_ORANGE,
+                    boxShadow: isActive ? "0 2px 6px rgba(0,0,0,0.18)" : "none",
+                    fontSize: 13.5, fontWeight: 600, textDecoration: "none",
+                  }}
+                  onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = HOVER_BG; }}
+                  onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
+                >
+                  {Icon && <Icon size={17} color={isActive ? SIDEBAR_BG : "#FFFFFF"} />}
+                  {LABEL_OVERRIDES[item.label] ?? item.label}
+                  {item.badge && <span style={{ marginLeft: "auto", fontSize: 9.5, fontWeight: 700, color: palette.green.solid, background: colors.white, padding: "2px 6px", borderRadius: radius.full }}>{item.badge}</span>}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
       </div>
-      <div style={{ background: palette.primary[50], borderRadius: radius.lg, padding: 16, marginTop: 12 }}>
-        <Zap size={18} color={palette.primary.solid} style={{ marginBottom: 8 }} />
-        <p style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 600, color: colors.gray[900], lineHeight: "16px" }}>Créez et envoyez une facture en moins de 3 minutes</p>
-        <Button variant="primary" icon={Plus} full>Nouvelle facture</Button>
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 8px 4px", marginTop: 8, borderTop: `1px solid ${colors.gray[100]}` }}>
-        <Avatar initials="HK" color="gray" size={34} />
-        <div style={{ flex: 1 }}>
-          <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: colors.gray[900] }}>Hubert K.</p>
-          <p style={{ margin: 0, fontSize: 11, color: colors.gray[600] }}>Administrateur</p>
+
+      <div ref={menuRef} style={{ position: "relative", background: SIDEBAR_BG, margin: "8px -14px 0", padding: "0 14px 20px" }}>
+        <div
+          onClick={() => setMenuOpen((v) => !v)}
+          style={{
+            display: "flex", alignItems: "center", gap: 10, padding: "14px 0 4px",
+            borderTop: `1px solid ${SIDEBAR_BORDER}`, cursor: "pointer",
+            borderRadius: radius.md,
+          }}
+        >
+          <Avatar initials="HK" color="gray" size={34} />
+          <div style={{ flex: 1 }}>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: TEXT_ON_ORANGE }}>Hubert K.</p>
+            <p style={{ margin: 0, fontSize: 11, color: TEXT_ON_ORANGE_MUTED }}>Administrateur</p>
+          </div>
+          <ChevronDown
+            size={14}
+            color={TEXT_ON_ORANGE}
+            style={{ transform: menuOpen ? "rotate(180deg)" : "none", transition: "transform .15s" }}
+          />
         </div>
-        <ChevronDown size={14} color={colors.gray[400]} />
+
+        {menuOpen && (
+          <div style={{
+            position: "absolute", bottom: "calc(100% + 8px)", left: 8, right: 8,
+            background: colors.white, border: `1px solid ${colors.gray[200]}`, borderRadius: radius.md,
+            boxShadow: "0 10px 28px rgba(0,0,0,0.22)", overflow: "hidden", zIndex: 20,
+          }}>
+            <button
+              onClick={handleLogout}
+              style={{
+                display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 12px",
+                border: "none", background: "none", cursor: "pointer", textAlign: "left",
+                fontSize: 13, fontWeight: 600, color: palette.danger.solid,
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = colors.gray[50]; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
+            >
+              <LogOut size={15} /> Déconnexion
+            </button>
+          </div>
+        )}
       </div>
     </aside>
   );
