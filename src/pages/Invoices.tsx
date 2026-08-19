@@ -1,26 +1,37 @@
 import React, { useMemo, useState } from "react";
 import { Plus, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { palette, colors, radius } from "@/theme/tokens";
 import { Header } from "../components/shell/Header";
-import { useInvoices, useCreateInvoice, useRecordPayment } from "../modules/invoices/useInvoices";
+import { useInvoices, useCreateInvoice, useRecordPayment, useSendInvoiceReminder, useCancelInvoice } from "../modules/invoices/useInvoices";
 import { InvoicesToolbar } from "../modules/invoices/components/InvoicesToolbar";
 import type { StatusFilter } from "../modules/invoices/components/InvoicesToolbar";
 import { InvoiceCard } from "../modules/invoices/components/InvoiceCard";
 import { NewInvoiceForm } from "../modules/invoices/components/NewInvoiceForm";
 import ComplianceScoreBadge from '../components/ComplianceScoreBadge';
+import { useAutoOpenCreate } from "@/hooks/useAutoOpenCreate";
 
 export default function Invoices() {
   const { data: invoices, isLoading, isError } = useInvoices();
   const createInvoice = useCreateInvoice();
   const recordPayment = useRecordPayment();
+  const sendReminder = useSendInvoiceReminder();
+  const cancelInvoice = useCancelInvoice();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<StatusFilter>("Toutes");
   const [showForm, setShowForm] = useState(false);
+  const [remindingId, setRemindingId] = useState<string | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+
+  // Ouvre automatiquement ce formulaire si on arrive ici via le bouton "+" -> "Facture"
+  // du menu de creation rapide mobile (BottomNav).
+  useAutoOpenCreate(setShowForm);
 
   const mapped = useMemo(() => {
     if (!invoices) return [];
     return invoices.map((inv: any) => ({
       id: inv.id,
+      clientId: inv.client_id,
       invoiceNumber: inv.invoice_number,
       clientName: inv.clients?.name ?? "Client",
       clientEmail: inv.clients?.email,
@@ -33,6 +44,14 @@ export default function Invoices() {
       templateId: inv.template_id ?? null,
       items: inv.invoice_items || [],
       complianceStatus: inv.compliance_status,
+      fne: {
+        fne_status: inv.fne_status ?? null,
+        fne_reference: inv.fne_reference ?? null,
+        fne_ncc: inv.fne_ncc ?? null,
+        fne_qr_token: inv.fne_qr_token ?? null,
+        fne_certified_at: inv.fne_certified_at ?? null,
+        fne_error: inv.fne_error ?? null,
+      },
     }));
   }, [invoices]);
 
@@ -59,7 +78,44 @@ export default function Invoices() {
     });
   }
 
-  function handleRemind(id: string) { console.log("Relance:", id); }
+  function handleRemind(id: string) {
+    if (remindingId) return;
+    const inv = mapped.find((i) => i.id === id);
+    if (!inv) return;
+    if (!inv.clientEmail) {
+      toast.error("Ce client n'a pas d'adresse email enregistree.");
+      return;
+    }
+    setRemindingId(id);
+    sendReminder.mutate(
+      {
+        invoiceId: id,
+        clientId: inv.clientId,
+        clientEmail: inv.clientEmail,
+        invoiceNumber: inv.invoiceNumber,
+        amountDue: inv.amountDue,
+        dueDate: inv.dueDate,
+      },
+      {
+        onSuccess: () => toast.success("Relance envoyee a " + inv.clientEmail),
+        onError: (err: any) => toast.error(err.message),
+        onSettled: () => setRemindingId(null),
+      }
+    );
+  }
+
+  function handleCancel(id: string, reason: string) {
+    if (cancellingId) return;
+    setCancellingId(id);
+    cancelInvoice.mutate(
+      { invoiceId: id, cancellationReason: reason },
+      {
+        onSuccess: () => toast.success("Facture annulee."),
+        onError: (err: any) => toast.error(err.message),
+        onSettled: () => setCancellingId(null),
+      }
+    );
+  }
 
   return (
     <>
@@ -97,7 +153,15 @@ export default function Invoices() {
                 {mapped.length === 0 ? "Aucune facture pour le moment. Creez votre premiere facture !" : "Aucun resultat."}
               </p>
             ) : filtered.map(inv => (
-              <InvoiceCard key={inv.id} invoice={inv} onMarkPaid={handleMarkPaid} onRemind={handleRemind}/>
+              <InvoiceCard
+                key={inv.id}
+                invoice={inv}
+                onMarkPaid={handleMarkPaid}
+                onRemind={handleRemind}
+                remindingId={remindingId}
+                onCancel={handleCancel}
+                cancelling={cancellingId === inv.id}
+              />
             ))}
           </div>
         </>

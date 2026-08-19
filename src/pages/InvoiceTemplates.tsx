@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
-  Plus, Trash2, Star, ArrowLeft, Loader2, Upload, Check, X,
+  Plus, Trash2, Star, ArrowLeft, Loader2, Upload, Check,
 } from "lucide-react";
 import { palette, colors, radius, shadow } from "@/theme/tokens";
 import { Header } from "../components/shell/Header";
@@ -81,6 +81,21 @@ const DEMO_INVOICE = {
   notes: "Merci de régler avant la date d'échéance.",
 };
 
+// --- Hook responsive : détecte le passage en mobile pour empiler le layout ---
+function useIsMobile(breakpoint = 860) {
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== "undefined" ? window.innerWidth < breakpoint : false
+  );
+  useEffect(() => {
+    function onResize() {
+      setIsMobile(window.innerWidth < breakpoint);
+    }
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [breakpoint]);
+  return isMobile;
+}
+
 function Field({ label, children }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -141,7 +156,7 @@ function TemplateCard({ tpl, onEdit, onDelete, onSetDefault }) {
         {!tpl.is_default && (
           <button onClick={() => onSetDefault(tpl.id)} style={{
             padding: "8px 10px", borderRadius: radius.md, border: "1px solid " + colors.gray[200],
-            background: colors.white, cursor: "pointer" }} title="Definir par defaut">
+            background: colors.white, cursor: "pointer" }} title="Définir par défaut">
             <Star size={14} color={colors.gray[500]} />
           </button>
         )}
@@ -160,6 +175,8 @@ function TemplateEditor({ initial, onBack, onSave, saving, companyId }) {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingSig, setUploadingSig] = useState(false);
+  const isMobile = useIsMobile();
+  const previewUrlRef = useRef(null);
 
   function set(key, value) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -172,21 +189,46 @@ function TemplateEditor({ initial, onBack, onSave, saving, companyId }) {
     });
   }
 
+  // Génère un aperçu PDF avec debounce. Corrigé pour :
+  // - éviter les mises à jour d'état après démontage (race condition)
+  // - libérer les anciennes blob URL et éviter les fuites mémoire
   useEffect(() => {
+    let cancelled = false;
     const timeout = setTimeout(async () => {
       try {
         const url = await generateInvoicePDFPreviewUrl({ ...DEMO_INVOICE, template: form });
+        if (cancelled) return;
         setPreviewUrl(url);
+        if (previewUrlRef.current && previewUrlRef.current.startsWith("blob:")) {
+          URL.revokeObjectURL(previewUrlRef.current);
+        }
+        previewUrlRef.current = url;
       } catch (err) {
         console.error("Erreur aperçu PDF:", err);
       }
     }, 400);
-    return () => clearTimeout(timeout);
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
   }, [form]);
+
+  // Nettoyage de la dernière blob URL au démontage du composant
+  useEffect(() => {
+    return () => {
+      if (previewUrlRef.current && previewUrlRef.current.startsWith("blob:")) {
+        URL.revokeObjectURL(previewUrlRef.current);
+      }
+    };
+  }, []);
 
   async function handleLogoUpload(e) {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!companyId) {
+      alert("Entreprise introuvable, veuillez réessayer.");
+      return;
+    }
     setUploadingLogo(true);
     try {
       const url = await uploadTemplateAsset(companyId, file, "logo");
@@ -195,12 +237,17 @@ function TemplateEditor({ initial, onBack, onSave, saving, companyId }) {
       alert("Erreur upload logo: " + err.message);
     } finally {
       setUploadingLogo(false);
+      e.target.value = "";
     }
   }
 
   async function handleSignatureUpload(e) {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!companyId) {
+      alert("Entreprise introuvable, veuillez réessayer.");
+      return;
+    }
     setUploadingSig(true);
     try {
       const url = await uploadTemplateAsset(companyId, file, "signature");
@@ -209,6 +256,7 @@ function TemplateEditor({ initial, onBack, onSave, saving, companyId }) {
       alert("Erreur upload signature: " + err.message);
     } finally {
       setUploadingSig(false);
+      e.target.value = "";
     }
   }
 
@@ -222,11 +270,17 @@ function TemplateEditor({ initial, onBack, onSave, saving, companyId }) {
         <ArrowLeft size={15} /> Retour aux modèles
       </button>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1.1fr", gap: 16 }}>
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: isMobile ? "1fr" : "1fr 1.1fr",
+        gap: 16,
+      }}>
         {/* Formulaire */}
         <div style={{ background: colors.white, borderRadius: radius.lg, padding: 20,
           border: "1px solid " + colors.gray[100], boxShadow: shadow.card,
-          display: "flex", flexDirection: "column", gap: 16, maxHeight: "80vh", overflowY: "auto" }}>
+          display: "flex", flexDirection: "column", gap: 16,
+          maxHeight: isMobile ? "none" : "80vh",
+          overflowY: isMobile ? "visible" : "auto" }}>
 
           <Field label="Nom du modèle">
             <input value={form.name} onChange={(e) => set("name", e.target.value)}
@@ -246,7 +300,7 @@ function TemplateEditor({ initial, onBack, onSave, saving, companyId }) {
           <ColorField label="Couleur d'accent" value={form.accentColor} onChange={(v) => set("accentColor", v)} />
 
           <Field label="Logo">
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
               {form.logoUrl && (
                 <img src={form.logoUrl} alt="Logo" style={{ width: 40, height: 40, borderRadius: radius.md,
                   objectFit: "cover", border: "1px solid " + colors.gray[200] }} />
@@ -429,11 +483,15 @@ function TemplateEditor({ initial, onBack, onSave, saving, companyId }) {
         </div>
 
         {/* Aperçu */}
-        <div style={{ position: "sticky", top: 0, alignSelf: "flex-start" }}>
+        <div style={{ position: isMobile ? "static" : "sticky", top: 0, alignSelf: "flex-start" }}>
           <p style={{ margin: "0 0 8px", fontSize: 12.5, fontWeight: 700, color: colors.gray[600] }}>
             Aperçu en temps réel
           </p>
-          <div style={{ background: colors.gray[100], borderRadius: radius.lg, padding: 8, height: "78vh" }}>
+          <div style={{ background: colors.gray[100], borderRadius: radius.lg, padding: 8,
+            aspectRatio: "210 / 297",
+            maxHeight: isMobile ? "none" : "78vh",
+            width: "100%",
+            boxSizing: "border-box" }}>
             {previewUrl ? (
               <iframe src={previewUrl} title="Aperçu facture" style={{ width: "100%", height: "100%", border: "none", borderRadius: radius.md }} />
             ) : (
@@ -445,7 +503,7 @@ function TemplateEditor({ initial, onBack, onSave, saving, companyId }) {
         </div>
       </div>
 
-      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
         <button onClick={onBack} style={{ padding: "10px 18px", borderRadius: radius.md,
           border: "1px solid " + colors.gray[200], background: colors.white, color: colors.gray[600],
           fontSize: 13.5, fontWeight: 700, cursor: "pointer", fontFamily: font }}>Annuler</button>
@@ -532,7 +590,7 @@ export default function InvoiceTemplates() {
 
   return (
     <>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, flexWrap: "wrap", gap: 8 }}>
         <Header title="Modèles de factures" />
         <button onClick={openNew} style={{
           display: "flex", alignItems: "center", gap: 6, padding: "9px 14px",
@@ -545,6 +603,10 @@ export default function InvoiceTemplates() {
       {isLoading ? (
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "60px 0" }}>
           <Loader2 size={18} color={palette.primary.solid} className="animate-spin" />
+        </div>
+      ) : (templates || []).length === 0 ? (
+        <div style={{ padding: "60px 0", textAlign: "center", color: colors.gray[500], fontSize: 13.5 }}>
+          Aucun modèle pour l'instant. Créez-en un pour commencer.
         </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 12, marginTop: 12 }}>

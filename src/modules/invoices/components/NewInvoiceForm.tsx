@@ -4,9 +4,26 @@ import { palette, colors, radius, shadow } from "@/theme/tokens";
 import { useClients } from "../../clients/useClients";
 import { useProducts } from "../../products/useProducts";
 import { useInvoiceTemplates } from "../../invoiceTemplates/useInvoiceTemplates";
+import { useCompany } from "../../../hooks/useCompany";
 
 const font = "'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif";
-type LineItem = { id:string; description:string; qty:number; unitPrice:number };
+
+type VatRateType = "normal" | "reduit" | "exonere" | "hors_champ";
+type LineItem = {
+  id: string;
+  description: string;
+  qty: number;
+  unitPrice: number;
+  vatRateType: VatRateType;
+  vatExemptionReason: string;
+};
+
+const VAT_OPTIONS: { value: VatRateType; label: string }[] = [
+  { value: "normal", label: "Normal" },
+  { value: "reduit", label: "Réduit" },
+  { value: "exonere", label: "Exonéré" },
+  { value: "hors_champ", label: "Hors champ" },
+];
 
 function StepIndicator({ step }: { step:number }) {
   const steps = [
@@ -49,15 +66,22 @@ export function NewInvoiceForm({ onClose, onSave, saving }: { onClose:()=>void; 
   const { data: clients, isLoading: clientsLoading } = useClients();
   const { data: products } = useProducts();
   const { data: templates } = useInvoiceTemplates();
+  const { data: company } = useCompany();
   const [step, setStep] = useState(1);
   const [clientId, setClientId] = useState("");
   const [search, setSearch] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [notes, setNotes] = useState("");
   const [templateId, setTemplateId] = useState("");
-  const [items, setItems] = useState<LineItem[]>([{ id:"1", description:"", qty:1, unitPrice:0 }]);
+  const [items, setItems] = useState<LineItem[]>([
+    { id:"1", description:"", qty:1, unitPrice:0, vatRateType:"normal", vatExemptionReason:"" },
+  ]);
 
-  // Pré-sélectionne le modèle par défaut dès qu'il est chargé
+  // Taux TVA "normal" reel de l'entreprise (companies.tax_rate), plutot que 18% fige.
+  // Sert uniquement a l'apercu cote client : le calcul definitif se fait cote base
+  // via get_current_vat_rate(pays, categorie) au moment de l'insertion des lignes.
+  const companyVatRate = Number(company?.companies?.tax_rate) || 18;
+
   useEffect(() => {
     if (!templateId && templates && templates.length > 0) {
       const def = templates.find((t: any) => t.is_default) || templates[0];
@@ -68,12 +92,20 @@ export function NewInvoiceForm({ onClose, onSave, saving }: { onClose:()=>void; 
   const client = (clients||[]).find((c:any) => c.id === clientId);
   const filteredClients = (clients||[]).filter((c:any) => c.name.toLowerCase().includes(search.toLowerCase()));
   const step1Valid = clientId !== "";
-  const step2Valid = items.some(i => i.description.trim() !== "" && i.unitPrice > 0);
+  const step2Valid = items.some(i => i.description.trim() !== "" && i.unitPrice > 0)
+    && items.every(i => i.vatRateType !== "exonere" || i.vatExemptionReason.trim() !== "");
+
+  function vatRateFor(item: LineItem): number {
+    if (item.vatRateType === "exonere" || item.vatRateType === "hors_champ") return 0;
+    if (item.vatRateType === "reduit") return companyVatRate <= 9 ? companyVatRate : 9; // repli raisonnable si pas de taux reduit connu localement
+    return companyVatRate;
+  }
+
   const subtotal = items.reduce((s,i) => s+i.qty*i.unitPrice, 0);
-  const tva = subtotal * 0.18;
+  const tva = items.reduce((s,i) => s + (i.qty*i.unitPrice) * (vatRateFor(i)/100), 0);
   const total = subtotal + tva;
 
-  function addItem() { setItems(prev => [...prev, { id:Date.now().toString(), description:"", qty:1, unitPrice:0 }]); }
+  function addItem() { setItems(prev => [...prev, { id:Date.now().toString(), description:"", qty:1, unitPrice:0, vatRateType:"normal", vatExemptionReason:"" }]); }
   function removeItem(id:string) { setItems(prev => prev.filter(i => i.id !== id)); }
   function updateItem(id:string, field:keyof LineItem, value:any) {
     setItems(prev => prev.map(i => i.id===id ? { ...i, [field]:value } : i));
@@ -84,6 +116,9 @@ export function NewInvoiceForm({ onClose, onSave, saving }: { onClose:()=>void; 
     setItems(prev => prev.map(i => i.id===itemId ? { ...i, description:p.name, unitPrice:Number(p.unit_price) } : i));
   }
   function handleSubmit() {
+    // vatRateType/vatExemptionReason transmis pour chaque ligne ; le taux numerique
+    // (tax_rate) n'est volontairement pas fixe ici — laisse au moteur cote base
+    // (auto_fill_vat_rate) le soin de le determiner a partir du pays de l'entreprise.
     onSave({ clientId, dueDate, notes, items, templateId: templateId || null });
   }
 
@@ -203,12 +238,36 @@ export function NewInvoiceForm({ onClose, onSave, saving }: { onClose:()=>void; 
                           fontSize:13, fontFamily:font, color:colors.gray[900], outline:"none", background:colors.white, boxSizing:"border-box" }}/>
                     </div>
                     <div>
-                      <label style={{ fontSize:11, fontWeight:600, color:colors.gray[600] }}>Total</label>
+                      <label style={{ fontSize:11, fontWeight:600, color:colors.gray[600] }}>Total HT</label>
                       <div style={{ padding:"9px 10px", borderRadius:radius.md, border:"1px solid "+colors.gray[100],
                         background:colors.gray[50], fontSize:13, fontWeight:700, color:colors.gray[900] }}>
                         {(item.qty * item.unitPrice).toLocaleString("fr-FR")}
                       </div>
                     </div>
+                  </div>
+                  <div>
+                    <label style={{ fontSize:11, fontWeight:600, color:colors.gray[600] }}>Categorie TVA</label>
+                    <div style={{ display:"flex", gap:6, marginTop:6, flexWrap:"wrap" }}>
+                      {VAT_OPTIONS.map(opt => {
+                        const active = item.vatRateType === opt.value;
+                        return (
+                          <button key={opt.value} onClick={()=>updateItem(item.id,"vatRateType",opt.value)} style={{
+                            padding:"5px 11px", borderRadius:radius.full, fontSize:11.5, fontWeight:700, cursor:"pointer", fontFamily:font,
+                            border:"1px solid "+(active ? palette.primary.solid : colors.gray[200]),
+                            background: active ? palette.primary[50] : colors.white,
+                            color: active ? palette.primary.text : colors.gray[500] }}>
+                            {opt.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {item.vatRateType === "exonere" && (
+                      <input value={item.vatExemptionReason} onChange={(e)=>updateItem(item.id,"vatExemptionReason",e.target.value)}
+                        placeholder="Motif de l'exoneration (obligatoire)"
+                        style={{ marginTop:8, width:"100%", padding:"9px 12px", borderRadius:radius.md,
+                          border:"1px solid "+(item.vatExemptionReason.trim()===""? palette.danger.solid : colors.gray[200]),
+                          fontSize:13, fontFamily:font, color:colors.gray[900], outline:"none", background:colors.white, boxSizing:"border-box" }}/>
+                    )}
                   </div>
                 </div>
               ))}
@@ -242,7 +301,10 @@ export function NewInvoiceForm({ onClose, onSave, saving }: { onClose:()=>void; 
                     borderBottom:"1px solid "+colors.gray[100] }}>
                     <div>
                       <p style={{ margin:0, fontSize:13, fontWeight:600, color:colors.gray[900] }}>{item.description}</p>
-                      <p style={{ margin:0, fontSize:12, color:colors.gray[400] }}>{"x"+item.qty+" x "+item.unitPrice.toLocaleString("fr-FR")+" FCFA"}</p>
+                      <p style={{ margin:0, fontSize:12, color:colors.gray[400] }}>
+                        {"x"+item.qty+" x "+item.unitPrice.toLocaleString("fr-FR")+" FCFA"}
+                        {item.vatRateType !== "normal" ? " · TVA "+VAT_OPTIONS.find(o=>o.value===item.vatRateType)?.label : ""}
+                      </p>
                     </div>
                     <p style={{ margin:0, fontSize:13, fontWeight:700, color:colors.gray[900] }}>
                       {(item.qty*item.unitPrice).toLocaleString("fr-FR")+" FCFA"}
@@ -255,16 +317,20 @@ export function NewInvoiceForm({ onClose, onSave, saving }: { onClose:()=>void; 
                     <span style={{ fontSize:13, color:colors.gray[900] }}>{subtotal.toLocaleString("fr-FR")+" FCFA"}</span>
                   </div>
                   <div style={{ display:"flex", justifyContent:"space-between" }}>
-                    <span style={{ fontSize:13, color:colors.gray[600] }}>TVA (18%)</span>
-                    <span style={{ fontSize:13, color:colors.gray[900] }}>{tva.toLocaleString("fr-FR")+" FCFA"}</span>
+                    <span style={{ fontSize:13, color:colors.gray[600] }}>TVA</span>
+                    <span style={{ fontSize:13, color:colors.gray[900] }}>{Math.round(tva).toLocaleString("fr-FR")+" FCFA"}</span>
                   </div>
                   <div style={{ display:"flex", justifyContent:"space-between", padding:"10px 0 0",
                     borderTop:"2px solid "+colors.gray[900], marginTop:4 }}>
                     <span style={{ fontSize:15, fontWeight:700, color:colors.gray[900] }}>Total</span>
                     <span style={{ fontSize:15, fontWeight:700, color:palette.primary.solid }}>
-                      {total.toLocaleString("fr-FR")+" FCFA"}
+                      {Math.round(total).toLocaleString("fr-FR")+" FCFA"}
                     </span>
                   </div>
+                  <p style={{ margin:"6px 0 0", fontSize:11, color:colors.gray[400] }}>
+                    Montant TVA indicatif — le taux exact appliqué à l'enregistrement dépend de la
+                    configuration fiscale du pays de votre entreprise.
+                  </p>
                 </div>
               </div>
             </div>

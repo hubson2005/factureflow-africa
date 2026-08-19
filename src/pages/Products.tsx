@@ -4,6 +4,7 @@ import { palette, colors, radius, shadow } from "@/theme/tokens";
 import { Header } from "../components/shell/Header";
 import { useProducts, useCreateProduct } from "../modules/products/useProducts";
 import { NewProductForm } from "../modules/products/components/NewProductForm";
+import { useAutoOpenCreate } from "@/hooks/useAutoOpenCreate";
 
 const font = "'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif";
 const FILTERS = ["Tous", "Service", "Produit", "Abonnement"];
@@ -16,6 +17,10 @@ export default function Products() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("Tous");
   const [showForm, setShowForm] = useState(false);
+
+  // Ouvre automatiquement ce formulaire si on arrive ici via le bouton "+" -> "Produit"
+  // du menu de creation rapide mobile (BottomNav).
+  useAutoOpenCreate(setShowForm);
 
   const filtered = useMemo(() => {
     if (!products) return [];

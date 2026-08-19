@@ -7,16 +7,16 @@
 
   <!-- Page d'accueil -->
   <url>
-    <loc>https://www.socialapp.work/</loc>
-    <lastmod>2025-05-11</lastmod>
+    <loc>https://facture.socialapp.work/</loc>
+    <lastmod>2026-08-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
 
   <!-- Page de connexion -->
   <url>
-    <loc>https://www.socialapp.work/login</loc>
-    <lastmod>2025-05-11</lastmod>
+    <loc>https://facture.socialapp.work/login</loc>
+    <lastmod>2026-08-18</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>

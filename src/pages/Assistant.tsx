@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Bot, Send, AlertCircle, TrendingUp, FileText, RefreshCw } from "lucide-react";
+import { Bot, Send, AlertCircle, TrendingUp, FileText, RefreshCw, Target, Send as SendIcon } from "lucide-react";
 import { palette, colors, radius, shadow } from "@/theme/tokens";
 import { Header } from "../components/shell/Header";
 import { supabase } from "../lib/supabaseClient";
 
 const font = "'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif";
 const SUGGESTIONS = [
+  { icon: Target, label: "Que dois-je faire aujourd'hui ?", color: "primary" },
   { icon: AlertCircle, label: "Relancer les impayes", color: "danger" },
   { icon: TrendingUp, label: "Analyser mes ventes", color: "primary" },
   { icon: FileText, label: "Resume de mes devis", color: "blue" },
@@ -50,13 +51,30 @@ export default function Assistant() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erreur inconnue");
 
-      setMessages((prev) => [...prev, { role: "assistant", text: data.reply }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          text: data.reply,
+          suggestedActions: Array.isArray(data.suggested_actions) ? data.suggested_actions : [],
+        },
+      ]);
     } catch (err) {
       setError(err.message);
       setMessages((prev) => [...prev, { role: "assistant", text: "Desole, une erreur est survenue. Reessayez dans un instant." }]);
     } finally {
       setLoading(false);
     }
+  }
+
+  // Clic sur un bouton d'action: on retire les actions du message (evite double-clic /
+  // double envoi) puis on envoie le message de confirmation comme si l'utilisateur l'avait tape.
+  function handleActionClick(messageIndex, action) {
+    if (loading) return;
+    setMessages((prev) =>
+      prev.map((m, i) => (i === messageIndex ? { ...m, suggestedActions: [] } : m))
+    );
+    sendMessage(action.confirm_message);
   }
 
   return (
@@ -85,21 +103,46 @@ export default function Assistant() {
           border: "1px solid " + colors.gray[100], boxShadow: shadow.card }}>
           {messages.map((m, i) => {
             const isAssistant = m.role === "assistant";
+            const hasActions = isAssistant && m.suggestedActions && m.suggestedActions.length > 0;
             return (
-              <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start",
-                flexDirection: isAssistant ? "row" : "row-reverse" }}>
-                {isAssistant && (
-                  <div style={{ width: 32, height: 32, borderRadius: radius.full, background: colors.gray[900],
-                    display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <Bot size={16} color={colors.white} />
+              <div key={i} style={{ display: "flex", flexDirection: "column", gap: 6,
+                alignItems: isAssistant ? "flex-start" : "flex-end" }}>
+                <div style={{ display: "flex", gap: 10, alignItems: "flex-start",
+                  flexDirection: isAssistant ? "row" : "row-reverse", width: "100%" }}>
+                  {isAssistant && (
+                    <div style={{ width: 32, height: 32, borderRadius: radius.full, background: colors.gray[900],
+                      display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <Bot size={16} color={colors.white} />
+                    </div>
+                  )}
+                  <div style={{ maxWidth: "75%", padding: "10px 14px", borderRadius: radius.lg,
+                    background: isAssistant ? colors.gray[50] : palette.primary.solid,
+                    color: isAssistant ? colors.gray[900] : colors.white,
+                    fontSize: 13.5, lineHeight: "20px", fontFamily: font, whiteSpace: "pre-wrap" }}>
+                    {m.text}
+                  </div>
+                </div>
+
+                {hasActions && (
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginLeft: 42 }}>
+                    {m.suggestedActions.map((action, ai) => (
+                      <button
+                        key={ai}
+                        onClick={() => handleActionClick(i, action)}
+                        disabled={loading}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 6, padding: "9px 14px",
+                          borderRadius: radius.md, border: "none",
+                          background: palette.primary.solid, color: colors.white,
+                          fontSize: 13, fontWeight: 600, fontFamily: font,
+                          cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1,
+                        }}
+                      >
+                        <SendIcon size={13} /> {action.label}
+                      </button>
+                    ))}
                   </div>
                 )}
-                <div style={{ maxWidth: "75%", padding: "10px 14px", borderRadius: radius.lg,
-                  background: isAssistant ? colors.gray[50] : palette.primary.solid,
-                  color: isAssistant ? colors.gray[900] : colors.white,
-                  fontSize: 13.5, lineHeight: "20px", fontFamily: font, whiteSpace: "pre-wrap" }}>
-                  {m.text}
-                </div>
               </div>
             );
           })}

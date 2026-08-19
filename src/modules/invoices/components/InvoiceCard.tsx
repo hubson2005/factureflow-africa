@@ -1,12 +1,13 @@
-import React, { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import { CheckCircle2, Bell, MoreVertical, Download, Loader2, Eye, Mail, Ban, X } from "lucide-react";
-import { palette, colors, radius, shadow } from "@/theme/tokens";
+import React, { useRef, useState } from "react";
+import { CheckCircle2, Bell, MoreVertical, Download, Loader2, Ban, ShieldCheck } from "lucide-react";
+import { palette, colors, radius, shadow } from "../../../theme/tokens";
 import { Avatar, StatusBadge, font } from "./Primitives";
 import { generateInvoicePDF } from "../pdfGenerator";
 import { useInvoicePdfContext } from "../useInvoicePdfContext";
-import { useCancelInvoice, useSendInvoiceEmail } from "../useInvoices";
+import { useCertifyInvoiceFne } from "../useInvoices";
 import ComplianceScoreBadge from "../../../components/ComplianceScoreBadge";
+import { InvoiceFneVisual } from "./InvoiceFneVisual";
+import { CancelInvoiceModal } from "./CancelInvoiceModal";
 
 export interface InvoiceCardData {
   id: string;
@@ -30,6 +31,16 @@ export interface InvoiceCardData {
     e_invoicing_status: string | null;
     computed_at: string;
   } | null;
+  // Certification FNE (Cote d'Ivoire) — objet imbrique tel que fourni par Invoices.tsx,
+  // voir InvoiceFneVisual.tsx pour la forme exacte (fne_status/fne_reference/...)
+  fne?: {
+    fne_status?: string | null;
+    fne_reference?: string | null;
+    fne_ncc?: string | null;
+    fne_qr_token?: string | null;
+    fne_certified_at?: string | null;
+    fne_error?: string | null;
+  } | null;
 }
 
 function initialsOf(name:string) {
@@ -42,182 +53,19 @@ function colorOf(name:string) {
   return colorsList[Math.abs(hash) % colorsList.length];
 }
 
-function MoreMenu({ invoice, anchorRect, onClose }: {
-  invoice: InvoiceCardData; anchorRect: DOMRect; onClose: () => void;
-}) {
-  const [showDetail, setShowDetail] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const cancelInvoice = useCancelInvoice();
-  const sendEmail = useSendInvoiceEmail();
-  const isCancelled = invoice.status === "annulee";
-  const isPaid = invoice.status === "payee";
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) onClose();
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [onClose]);
-
-  function handleCancel() {
-    if (!confirm("Annuler la facture " + invoice.invoiceNumber + " ? Cette action est irreversible.")) return;
-    cancelInvoice.mutate(invoice.id, {
-      onSuccess: () => onClose(),
-      onError: (err: any) => alert("Erreur : " + err.message),
-    });
-  }
-
-  function handleSendEmail() {
-    if (!invoice.clientEmail) {
-      alert("Ce client n'a pas d'adresse email enregistree. Ajoutez-en une dans sa fiche avant d'envoyer.");
-      return;
-    }
-    sendEmail.mutate({
-      invoiceId: invoice.id,
-      clientEmail: invoice.clientEmail,
-      invoiceNumber: invoice.invoiceNumber,
-      total: invoice.total,
-      dueDate: invoice.dueDate,
-    }, {
-      onSuccess: (result: any) => {
-        alert("Facture envoyee avec succes a " + invoice.clientEmail);
-        onClose();
-      },
-      onError: (err: any) => alert("Erreur : " + err.message),
-    });
-  }
-
-  const itemStyle: React.CSSProperties = {
-    display:"flex", alignItems:"center", gap:10, width:"100%", padding:"10px 14px",
-    border:"none", background:"none", cursor:"pointer", fontFamily:font, fontSize:13,
-    fontWeight:600, color:colors.gray[700], textAlign:"left",
-  };
-
-  // Position calculee a partir du bouton "..." ; s'ajuste si trop pres du bord droit/bas de l'ecran
-  const menuWidth = 200;
-  const spacing = 4;
-  let left = anchorRect.right - menuWidth;
-  left = Math.max(8, Math.min(left, window.innerWidth - menuWidth - 8));
-  let top = anchorRect.bottom + spacing;
-  const estimatedMenuHeight = isCancelled || isPaid ? 88 : 132;
-  if (top + estimatedMenuHeight > window.innerHeight - 8) {
-    top = anchorRect.top - spacing - estimatedMenuHeight;
-  }
-
-  return createPortal(
-    <>
-      <div ref={menuRef} style={{ position:"fixed", top, left, zIndex:1000,
-        background:colors.white, borderRadius:radius.md, border:"1px solid "+colors.gray[100],
-        boxShadow:shadow.hover, minWidth:menuWidth, overflow:"hidden" }}>
-        <button style={itemStyle} onClick={() => setShowDetail(true)}>
-          <Eye size={15} color={colors.gray[500]} /> Voir la facture
-        </button>
-        <button style={{ ...itemStyle, opacity: sendEmail.isPending ? 0.6 : 1 }}
-          disabled={sendEmail.isPending} onClick={handleSendEmail}>
-          {sendEmail.isPending
-            ? <Loader2 size={15} className="animate-spin" color={colors.gray[500]} />
-            : <Mail size={15} color={colors.gray[500]} />}
-          {sendEmail.isPending ? "Envoi en cours..." : "Envoyer par email"}
-        </button>
-        {!isCancelled && !isPaid && (
-          <button style={{ ...itemStyle, color:palette.danger.solid, opacity: cancelInvoice.isPending ? 0.6 : 1 }}
-            disabled={cancelInvoice.isPending} onClick={handleCancel}>
-            {cancelInvoice.isPending
-              ? <Loader2 size={15} className="animate-spin" color={palette.danger.solid} />
-              : <Ban size={15} color={palette.danger.solid} />}
-            Annuler la facture
-          </button>
-        )}
-      </div>
-
-      {showDetail && (
-        <div onClick={() => setShowDetail(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.4)",
-          zIndex:1001, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ background:colors.white, borderRadius:radius.lg,
-            width:"100%", maxWidth:440, maxHeight:"85vh", overflowY:"auto", boxShadow:shadow.hover }}>
-            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
-              padding:"16px 20px", borderBottom:"1px solid "+colors.gray[100] }}>
-              <p style={{ margin:0, fontSize:15, fontWeight:700, color:colors.gray[900] }}>{invoice.invoiceNumber}</p>
-              <button onClick={() => setShowDetail(false)} style={{ border:"none", background:"none", cursor:"pointer" }}>
-                <X size={18} color={colors.gray[400]} />
-              </button>
-            </div>
-            <div style={{ padding:20, display:"flex", flexDirection:"column", gap:12 }}>
-              <div>
-                <p style={{ margin:0, fontSize:12, color:colors.gray[400] }}>Client</p>
-                <p style={{ margin:"2px 0 0", fontSize:14, fontWeight:600, color:colors.gray[900] }}>{invoice.clientName}</p>
-                {invoice.clientEmail && <p style={{ margin:0, fontSize:12.5, color:colors.gray[600] }}>{invoice.clientEmail}</p>}
-              </div>
-              <div style={{ display:"flex", gap:20 }}>
-                <div>
-                  <p style={{ margin:0, fontSize:12, color:colors.gray[400] }}>Statut</p>
-                  <div style={{ marginTop:4 }}><StatusBadge status={invoice.status} /></div>
-                </div>
-                <div>
-                  <p style={{ margin:0, fontSize:12, color:colors.gray[400] }}>Emise le</p>
-                  <p style={{ margin:"4px 0 0", fontSize:13, color:colors.gray[900] }}>
-                    {new Date(invoice.createdAt).toLocaleDateString("fr-FR")}
-                  </p>
-                </div>
-                {invoice.dueDate && (
-                  <div>
-                    <p style={{ margin:0, fontSize:12, color:colors.gray[400] }}>Echeance</p>
-                    <p style={{ margin:"4px 0 0", fontSize:13, color:colors.gray[900] }}>
-                      {new Date(invoice.dueDate).toLocaleDateString("fr-FR")}
-                    </p>
-                  </div>
-                )}
-              </div>
-              <div style={{ borderTop:"1px solid "+colors.gray[100], paddingTop:12 }}>
-                {(invoice.items || []).map((it, idx) => (
-                  <div key={idx} style={{ display:"flex", justifyContent:"space-between", padding:"6px 0" }}>
-                    <div>
-                      <p style={{ margin:0, fontSize:13, color:colors.gray[900] }}>{it.description}</p>
-                      <p style={{ margin:0, fontSize:11.5, color:colors.gray[400] }}>
-                        {"x"+it.quantity+" x "+Number(it.unit_price).toLocaleString("fr-FR")+" FCFA"}
-                      </p>
-                    </div>
-                    <p style={{ margin:0, fontSize:13, fontWeight:600, color:colors.gray[900] }}>
-                      {(it.quantity*it.unit_price).toLocaleString("fr-FR")+" FCFA"}
-                    </p>
-                  </div>
-                ))}
-              </div>
-              <div style={{ borderTop:"2px solid "+colors.gray[900], paddingTop:10, display:"flex", justifyContent:"space-between" }}>
-                <span style={{ fontSize:14, fontWeight:700, color:colors.gray[900] }}>Total</span>
-                <span style={{ fontSize:14, fontWeight:700, color:palette.primary.solid }}>
-                  {Math.round(invoice.total).toLocaleString("fr-FR")+" FCFA"}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </>,
-    document.body
-  );
-}
-
-export function InvoiceCard({ invoice, onMarkPaid, onRemind }: {
+export function InvoiceCard({ invoice, onMarkPaid, onRemind, onCancel, cancelling, remindingId }: {
   invoice:InvoiceCardData; onMarkPaid:(id:string, amountDue:number)=>void; onRemind:(id:string)=>void;
+  onCancel:(id:string, reason:string)=>void; cancelling?:boolean; remindingId?:string|null;
 }) {
   const [tx, setTx] = useState(0);
   const [downloading, setDownloading] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
-  const menuBtnRef = useRef<HTMLButtonElement>(null);
+  const [showCancelModal, setShowCancelModal] = useState(false);
   const startX = useRef(0);
   const dragging = useRef(false);
   const clientColor = colorOf(invoice.clientName);
   const { data: pdfContext } = useInvoicePdfContext(invoice.templateId);
-
-  function toggleMenu() {
-    if (!menuOpen && menuBtnRef.current) {
-      setAnchorRect(menuBtnRef.current.getBoundingClientRect());
-    }
-    setMenuOpen(v => !v);
-  }
+  const certifyFne = useCertifyInvoiceFne();
 
   function onTouchStart(e: React.TouchEvent) { startX.current=e.touches[0].clientX; dragging.current=true; }
   function onTouchMove(e: React.TouchEvent) {
@@ -249,7 +97,25 @@ export function InvoiceCard({ invoice, onMarkPaid, onRemind }: {
     }
   }
 
+  function handleConfirmCancel(reason: string) {
+    onCancel(invoice.id, reason);
+  }
+
+  function handleCertifyFne() {
+    setMenuOpen(false);
+    certifyFne.mutate(invoice.id, {
+      onSuccess: (result: any) => {
+        alert(result?.simulated
+          ? "Certification simulée (aucune clé API FNE configurée — voir Paramètres > Conformité fiscale)."
+          : "Facture certifiée avec succès auprès de la FNE.");
+      },
+      onError: (err: any) => alert("Erreur de certification : " + err.message),
+    });
+  }
+
   const isPaid = invoice.status === "payee";
+  const isCancelled = invoice.status === "annulee";
+  const isReminding = remindingId === invoice.id;
 
   return (
     <div style={{ position:"relative", overflow:"hidden", borderRadius:radius.lg, marginBottom:12 }}>
@@ -292,6 +158,10 @@ export function InvoiceCard({ invoice, onMarkPaid, onRemind }: {
           </div>
         )}
 
+        {invoice.fne?.fne_status && invoice.fne.fne_status !== "non_certifiee" && (
+          <InvoiceFneVisual fne={invoice.fne} />
+        )}
+
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-end", flexWrap:"wrap", gap:8 }}>
           <div>
             <p style={{ margin:0, fontSize:20, fontWeight:700, color:colors.gray[900] }}>
@@ -303,7 +173,7 @@ export function InvoiceCard({ invoice, onMarkPaid, onRemind }: {
               {invoice.amountDue > 0 && invoice.amountDue < invoice.total ? " · Reste "+Math.round(invoice.amountDue).toLocaleString("fr-FR")+" FCFA" : ""}
             </p>
           </div>
-          <div style={{ display:"flex", gap:6 }}>
+          <div style={{ display:"flex", gap:6, position:"relative" }}>
             {!isPaid && (
               <button onClick={()=>onMarkPaid(invoice.id, invoice.amountDue)} title="Marquer payee" style={{
                 width:32, height:32, borderRadius:radius.md, border:"1px solid "+colors.gray[200],
@@ -311,10 +181,13 @@ export function InvoiceCard({ invoice, onMarkPaid, onRemind }: {
                 <CheckCircle2 size={15} color={palette.green.solid}/>
               </button>
             )}
-            <button onClick={()=>onRemind(invoice.id)} title="Relancer" style={{
+            <button onClick={()=>onRemind(invoice.id)} disabled={isReminding} title="Relancer" style={{
               width:32, height:32, borderRadius:radius.md, border:"1px solid "+colors.gray[200],
-              background:colors.white, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
-              <Bell size={15} color={palette.primary.solid}/>
+              background:colors.white, display:"flex", alignItems:"center", justifyContent:"center",
+              cursor:isReminding?"not-allowed":"pointer" }}>
+              {isReminding
+                ? <Loader2 size={15} color={palette.primary.solid} className="animate-spin"/>
+                : <Bell size={15} color={palette.primary.solid}/>}
             </button>
             <button onClick={handleDownloadPDF} disabled={downloading} title="Telecharger PDF" style={{
               width:32, height:32, borderRadius:radius.md, border:"1px solid "+colors.gray[200],
@@ -324,20 +197,62 @@ export function InvoiceCard({ invoice, onMarkPaid, onRemind }: {
                 ? <Loader2 size={15} color={palette.primary.solid} className="animate-spin"/>
                 : <Download size={15} color={palette.primary.solid}/>}
             </button>
-            <div style={{ position:"relative" }}>
-              <button ref={menuBtnRef} title="Plus" onClick={toggleMenu} style={{
-                width:32, height:32, borderRadius:radius.md, border:"1px solid "+colors.gray[200],
-                background: menuOpen ? colors.gray[100] : colors.white,
-                display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
-                <MoreVertical size={15} color={colors.gray[400]}/>
-              </button>
-              {menuOpen && anchorRect && (
-                <MoreMenu invoice={invoice} anchorRect={anchorRect} onClose={() => setMenuOpen(false)} />
-              )}
-            </div>
+            <button title="Plus" onClick={()=>setMenuOpen(o=>!o)} style={{
+              width:32, height:32, borderRadius:radius.md, border:"1px solid "+colors.gray[200],
+              background:colors.white, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
+              <MoreVertical size={15} color={colors.gray[400]}/>
+            </button>
+
+            {menuOpen && (
+              <>
+                <div onClick={()=>setMenuOpen(false)} style={{ position:"fixed", inset:0, zIndex:9 }}/>
+                <div style={{
+                  position:"absolute", top:36, right:0, zIndex:10, minWidth:170,
+                  background:colors.white, borderRadius:radius.md, boxShadow:shadow.card,
+                  border:"1px solid "+colors.gray[100], padding:4 }}>
+                  {(!invoice.fne?.fne_status || invoice.fne.fne_status === "non_certifiee" || invoice.fne.fne_status === "erreur") && (
+                    <button
+                      disabled={certifyFne.isPending}
+                      onClick={handleCertifyFne}
+                      style={{
+                        width:"100%", display:"flex", alignItems:"center", gap:8, padding:"8px 10px",
+                        border:"none", background:"transparent", borderRadius:radius.sm,
+                        fontSize:12.5, fontWeight:600, fontFamily:font,
+                        color:certifyFne.isPending?colors.gray[300]:palette.primary.solid,
+                        cursor:certifyFne.isPending?"not-allowed":"pointer", textAlign:"left" }}>
+                      {certifyFne.isPending
+                        ? <Loader2 size={14} className="animate-spin"/>
+                        : <ShieldCheck size={14}/>}
+                      {certifyFne.isPending ? "Certification..." : "Certifier via FNE"}
+                    </button>
+                  )}
+                  <button
+                    disabled={isCancelled}
+                    onClick={()=>{ setMenuOpen(false); setShowCancelModal(true); }}
+                    style={{
+                      width:"100%", display:"flex", alignItems:"center", gap:8, padding:"8px 10px",
+                      border:"none", background:"transparent", borderRadius:radius.sm,
+                      fontSize:12.5, fontWeight:600, fontFamily:font,
+                      color:isCancelled?colors.gray[300]:palette.danger.solid,
+                      cursor:isCancelled?"not-allowed":"pointer", textAlign:"left" }}>
+                    <Ban size={14}/> {isCancelled ? "Deja annulee" : "Annuler la facture"}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
+
+      {showCancelModal && (
+        <CancelInvoiceModal
+          invoiceNumber={invoice.invoiceNumber}
+          saving={!!cancelling}
+          onClose={()=>setShowCancelModal(false)}
+          onConfirm={handleConfirmCancel}
+        />
+      )}
     </div>
   );
 }
+
