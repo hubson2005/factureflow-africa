@@ -115,6 +115,59 @@ sous-systeme pour jouer ce role, meme s'il semble le faire aujourd'hui.
 A verifier sur les autres fonctions `SECURITY DEFINER` du projet avant
 le merge vers `main`.
 
+### Audit complet des 31 fonctions SECURITY DEFINER (20/08/2026)
+
+Suite au correctif ci-dessus, audit systematique de toutes les fonctions
+`SECURITY DEFINER` du schema public, avant merge vers `main`.
+
+**2e correctif applique** (migration `revoke_public_execute_on_internal_only_functions`) :
+`log_audit_event()` et `dispatch_webhook()` n'avaient aucune verification
+sur `p_company_id`, mais ne sont jamais appelees par le frontend (confirme
+par recherche exhaustive dans `src/`) — uniquement en interne (triggers,
+`create_credit_note`). Avant correctif, un utilisateur authentifie pouvait :
+- injecter des entrees arbitraires dans le journal d'audit de N'IMPORTE
+  QUELLE entreprise (compromet un outil pense pour la conformite OHADA) ;
+- declencher les webhooks configures par N'IMPORTE QUELLE entreprise avec
+  un payload arbitraire, signe avec le VRAI secret HMAC de la victime
+  (usurpation d'evenements + abus/spam de son endpoint).
+
+Correctif : retrait du droit `EXECUTE` accorde a `anon`/`authenticated`/
+`PUBLIC` plutot qu'ajout d'une verification interne — ces fonctions ne
+sont utiles qu'en interne, et les appels internes (triggers, dont ceux
+declenches par `generate_due_recurring_invoices` via `pg_cron`, sans
+`auth.uid()`) restent inchanges car ils s'executent avec les privileges
+du proprietaire. Revalide par test reel (intrusion refusee, usage interne
+via insertion client de test toujours fonctionnel et journalise, nettoye).
+
+**29 autres fonctions verifiees, toutes correctement protegees** via
+`user_role_in_company()` en tete de fonction (`generate_api_key`,
+`accept_invitation`, `convert_quote_to_invoice`, `create_company_with_admin`,
+`can_add_user`, `can_create_client`, `can_create_invoice`,
+`unread_notifications_count`, `user_company_ids`, `calculate_client_score`,
+`recalculate_all_client_scores`, `evaluate_periodic_automation_rules`,
+`get_subscription_usage`, etc.). `get_invitation_preview` est protegee par
+design (token UUID imprevisible, donnees exposees non sensibles).
+
+**Nuance notee, non corrigee** : `accept_invitation()` ne verifie pas que
+l'email de l'utilisateur connecte correspond a l'email invite — n'importe
+qui en possession du token peut l'accepter en son propre nom. Probablement
+voulu (pattern lien-invitation "bearer token"), a confirmer avec Hubert
+si on veut durcir.
+
+### Decouverte hors perimetre securite : module Devis sans moteur TVA
+
+En auditant `convert_quote_to_invoice()`, decouverte que **`quote_items`
+n'a jamais recu le moteur TVA multi-pays** (pas de colonnes
+`vat_rate_type`/`vat_exemption_reason`, `tax_rate` par defaut a 18.00 en
+dur). Meme constat cote frontend : `NewQuoteForm.tsx` et `useQuotes.js`
+ont encore le taux 18% code en dur, exactement le bug corrige sur les
+factures mais jamais reporte sur les devis. Consequence : un devis cree
+pour une entreprise SN/BJ/BF/exoneree aura un taux de TVA faux, et
+`convert_quote_to_invoice()` copie ce taux errone tel quel (pas de
+recalcul par le trigger puisque `tax_rate` est explicitement non-null).
+Chantier a part entiere, pas traite dans cette session — prevenir
+avant de commencer si quelqu'un s'y attaque en parallele.
+
 ## Incidents (pour eviter de les reproduire)
 
 ### 19/08/2026 — Collision sur `refactor/socialapp-to-factureflow`
