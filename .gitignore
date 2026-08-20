@@ -41,3 +41,8 @@ project_tree.txt
 .claude/
 visual-test-debug/
 visual-test-output/
+
+# ERP FactureFlow
+erp/node_modules/
+erp/.env
+erp/test/webhook-sim/node_modules/

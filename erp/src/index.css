@@ -1,0 +1,173 @@
+/* =========================================================
+   Design tokens - ERP FactureFlow
+   Palette inspirée des registres commerciaux ouest-africains :
+   encre indigo profonde + accent cuivre (cauris/laiton), sur fond
+   papier chaud mais neutre (pas de cream cliché IA).
+   ========================================================= */
+:root {
+  --color-ink: #1B2430;        /* fond sombre / texte principal */
+  --color-indigo: #2F4157;     /* bleu-nuit, surfaces & sidebar */
+  --color-paper: #F6F5F1;      /* fond principal, neutre chaud */
+  --color-copper: #C97A3C;     /* accent - alertes, actions clés */
+  --color-copper-soft: #EFD9C4;
+  --color-sage: #6B8F71;       /* succès / stock ok */
+  --color-rust: #B5482F;       /* stock critique */
+  --color-line: #DEDAD1;
+
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', 'SFMono-Regular', monospace;
+
+  --radius: 6px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  min-height: 100vh;
+}
+
+.sidebar {
+  background: var(--color-indigo);
+  color: #fff;
+  padding: 24px 16px;
+}
+
+.sidebar-title {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  margin-bottom: 24px;
+  color: var(--color-copper-soft);
+}
+
+.sidebar nav a {
+  display: block;
+  color: #E7E9EC;
+  text-decoration: none;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  font-size: 0.92rem;
+  margin-bottom: 2px;
+}
+
+.sidebar nav a.active,
+.sidebar nav a:hover {
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+}
+
+.main {
+  padding: 32px 40px;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.page-header h1 { font-size: 1.6rem; }
+
+.eyebrow {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  color: var(--color-copper);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+th, td {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-line);
+  font-size: 0.9rem;
+}
+
+th {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6b7280;
+  background: #FBFAF8;
+}
+
+tr:last-child td { border-bottom: none; }
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge-ok { background: #E4EEE4; color: var(--color-sage); }
+.badge-low { background: #F8E4DE; color: var(--color-rust); }
+
+.btn {
+  background: var(--color-copper);
+  color: #fff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: var(--radius);
+  font-size: 0.88rem;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-weight: 600;
+}
+
+.btn:hover { background: #B36A31; }
+
+.btn-secondary {
+  background: transparent;
+  color: var(--color-indigo);
+  border: 1px solid var(--color-line);
+}
+
+input, select {
+  font-family: var(--font-body);
+  padding: 7px 10px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  font-size: 0.88rem;
+}
+
+.empty-state {
+  padding: 40px;
+  text-align: center;
+  color: #6b7280;
+  border: 1px dashed var(--color-line);
+  border-radius: var(--radius);
+  background: #fff;
+}
