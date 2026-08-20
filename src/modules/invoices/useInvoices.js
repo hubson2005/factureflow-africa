@@ -9,7 +9,7 @@ export function useInvoices() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("invoices")
-        .select("*, clients(name, email, phone), invoice_items(id, description, quantity, unit_price, line_total)")
+        .select("*, clients(name, email, phone), invoice_items(id, description, quantity, unit_price, line_total, tax_rate, vat_rate_type)")
         .eq("company_id", company.company_id)
         .order("created_at", { ascending: false });
       if (error) throw error;

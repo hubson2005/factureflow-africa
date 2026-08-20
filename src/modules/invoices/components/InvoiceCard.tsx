@@ -21,7 +21,7 @@ export interface InvoiceCardData {
   dueDate?: string;
   createdAt: string;
   templateId?: string | null;
-  items: { description:string; quantity:number; unit_price:number }[];
+  items: { description:string; quantity:number; unit_price:number; tax_rate?:number|string|null; vat_rate_type?:string|null }[];
   complianceStatus?: {
     score: number;
     status: string;
@@ -89,8 +89,21 @@ export function InvoiceCard({ invoice, onMarkPaid, onRemind, onCancel, cancellin
         companyPhone: pdfContext?.company?.phone,
         companyEmail: pdfContext?.company?.email,
         companyAddress: pdfContext?.company?.address,
-        items: (invoice.items ?? []).map(i => ({ description:i.description, qty:i.quantity, unitPrice:i.unit_price })),
+        items: (invoice.items ?? []).map((i:any) => ({
+          description: i.description,
+          qty: i.quantity,
+          unitPrice: i.unit_price,
+          tvaRate: i.tax_rate != null ? Number(i.tax_rate) / 100 : undefined,
+        })),
         template: pdfContext?.template || undefined,
+        // Bloc FNE reglementaire, seulement pour les entreprises Cote d'Ivoire
+        // (meme filtrage que le visuel/bouton dans l'app, voir showFne).
+        ...(showFne ? {
+          fneStatus: invoice.fne?.fne_status,
+          fneReference: invoice.fne?.fne_reference,
+          fneNcc: invoice.fne?.fne_ncc,
+          fneQrToken: invoice.fne?.fne_qr_token,
+        } : {}),
       });
     } finally {
       setDownloading(false);
