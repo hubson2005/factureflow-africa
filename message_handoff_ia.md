@@ -198,6 +198,23 @@ ete gardee. Deux bugs y ont ete identifies et corriges par patch cible
 **Lecon** : ce fichier doit desormais etre committe et pousse a chaque
 session, pas seulement garde en local.
 
+## Branche feature/erp-scaffold (decouverte le 20/08/2026, confirmee voulue)
+
+Une branche `feature/erp-scaffold` existe sur le remote (commit
+`616479f feat(erp): scaffold ERP modulaire (Stock, Achats, Tresorerie,
+RH)`, branchee depuis `main` juste avant le merge du 20/08/2026).
+**Non documentee dans ce fichier au moment de sa creation** — decouverte
+par accident via un `git branch --show-current` de Hubert, pas via ce
+handoff. Confirme aupres de Hubert : c'est **voulu**, demande
+directement par lui a l'autre IA, ca ne contredit pas la note
+"Connecteur Odoo deprioritise" plus haut (portee differente — la
+priorisation ERP a change depuis).
+
+**Lecon (bis)** : toute nouvelle branche de travail doit etre
+mentionnee ici des sa creation, meme un simple scaffold initial —
+sinon elle est invisible pour l'autre IA jusqu'a ce qu'elle merge ou
+qu'elle soit decouverte par hasard.
+
 ## Note mineure, non prioritaire (20/08/2026)
 
 L'API webhook existante (`invoice.created`/`invoice.updated`/etc., voir
