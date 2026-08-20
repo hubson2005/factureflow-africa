@@ -197,3 +197,14 @@ ete gardee. Deux bugs y ont ete identifies et corriges par patch cible
 
 **Lecon** : ce fichier doit desormais etre committe et pousse a chaque
 session, pas seulement garde en local.
+
+## Note mineure, non prioritaire (20/08/2026)
+
+L'API webhook existante (`invoice.created`/`invoice.updated`/etc., voir
+`IntegrationsSection.tsx`) n'a pas d'evenement dedie pour les avoirs
+(`create_credit_note` declenche `invoice.created` generique, montant
+negatif — pas faux, juste peu explicite) ni pour la certification FNE
+(aucun webhook, `fne_status` n'est pas surveille par
+`trg_webhook_invoice_updated`). Pas un bug, juste une granularite
+absente. A ne traiter que si un client reel en fait la demande — meme
+logique que le connecteur Odoo deprioritise.
