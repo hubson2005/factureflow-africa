@@ -154,19 +154,20 @@ qui en possession du token peut l'accepter en son propre nom. Probablement
 voulu (pattern lien-invitation "bearer token"), a confirmer avec Hubert
 si on veut durcir.
 
-### Decouverte hors perimetre securite : module Devis sans moteur TVA
+### Decouverte hors perimetre securite : module Devis sans moteur TVA — RESOLU
 
-En auditant `convert_quote_to_invoice()`, decouverte que **`quote_items`
-n'a jamais recu le moteur TVA multi-pays** (pas de colonnes
-`vat_rate_type`/`vat_exemption_reason`, `tax_rate` par defaut a 18.00 en
-dur). Meme constat cote frontend : `NewQuoteForm.tsx` et `useQuotes.js`
-ont encore le taux 18% code en dur, exactement le bug corrige sur les
-factures mais jamais reporte sur les devis. Consequence : un devis cree
-pour une entreprise SN/BJ/BF/exoneree aura un taux de TVA faux, et
-`convert_quote_to_invoice()` copie ce taux errone tel quel (pas de
-recalcul par le trigger puisque `tax_rate` est explicitement non-null).
-Chantier a part entiere, pas traite dans cette session — prevenir
-avant de commencer si quelqu'un s'y attaque en parallele.
+~~En auditant `convert_quote_to_invoice()`, decouverte que `quote_items`
+n'a jamais recu le moteur TVA multi-pays~~ **Corrige et teste le
+20/08/2026.** DB : colonnes `vat_rate_type`/`vat_exemption_reason`
+ajoutees a `quote_items`, trigger `trg_auto_fill_vat_rate_quote` (miroir
+de celui des factures), `convert_quote_to_invoice()` recopie desormais
+le regime TVA (meme correctif que sur les avoirs). Frontend :
+`NewQuoteForm.tsx`, `useQuotes.js`, `pdfGenerator.js` (devis) et
+`QuoteCard.tsx` mis a jour — plus de 18% code en dur, TVA regroupee par
+taux distinct y compris dans le PDF (valide par generation reelle +
+inspection visuelle). Teste en base pour le Senegal (cree/verifie/
+nettoye) : devis multi-taux + conversion en facture, tout correct de
+bout en bout. Commit `eb1b426`.
 
 ## Incidents (pour eviter de les reproduire)
 
