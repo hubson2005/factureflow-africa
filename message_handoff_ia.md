@@ -48,12 +48,31 @@ Avant toute migration ou tout developpement frontend consequent :
 
 ### A verifier / a reprendre
 
-- Le PDF de facture (`pdfGenerator.ts` / `useInvoicePdfContext.js`) ne
-  semble pas encore integrer le visuel FNE ni le detail TVA par taux —
-  a confirmer et completer si besoin.
-- Expansion SN/BJ/BF au-dela de la Cote d'Ivoire : `vat_rates` et
-  `country_configs` couvrent deja ces 4 pays cote base, mais aucun test
-  fonctionnel frontend n'a ete fait pour SN/BJ/BF (seul CI a ete verifie).
+- ~~Le PDF de facture ne semble pas encore integrer le visuel FNE ni le
+  detail TVA par taux~~ **Verifie le 20/08/2026 : deja fait**, voir
+  commit `bd6aa80`. `pdfGenerator.ts` regroupe la TVA par taux distinct
+  et affiche un bloc FNE reglementaire (QR + reference + NCC),
+  independant des reglages generiques du template.
+- ~~Expansion SN/BJ/BF : aucun test fonctionnel frontend~~ **Teste le
+  20/08/2026** via insertion reelle (puis nettoyee) d'une facture
+  multi-lignes (normal/exonere/hors_champ) pour une entreprise de
+  chaque pays. Resultat : taux et totaux corrects pour les 4 pays
+  (CI/SN/BJ/BF). Le trigger `trg_auto_fill_vat_rate` et
+  `get_current_vat_rate()` se comportent de facon identique et fiable
+  quel que soit le pays. Aucun code frontend n'a ete modifie (deja
+  correctement branche sur `country_code` dynamique, pas de valeur
+  codee en dur).
+  **Note technique decouverte au passage** : une contrainte DB
+  `chk_vat_exemption_reason_required` impose un motif d'exoneration
+  quand `vat_rate_type = 'exonere'` — deja anticipee cote frontend
+  (`NewInvoiceForm.tsx`), rien a corriger, juste a garder en tete pour
+  tout futur script/seed qui inserait des lignes exonerees.
+
+### A faire ensuite
+
+- Aucun chantier TVA/FNE ouvert a ce stade sur les 4 pays couverts.
+  Prochaine etape logique si besoin : ajouter un 5e pays, ou traiter
+  un des autres points "on the horizon" (audits/avoirs, responsive).
 
 ## Incidents (pour eviter de les reproduire)
 
