@@ -66,6 +66,7 @@ export function QuoteCard({ quote, onAccept, onSend, onRefuse }) {
       companySignatureUrl: company?.companies?.signature_url,
       items: (quote.items || []).map((i) => ({
         description: i.description, qty: i.quantity, unitPrice: Number(i.unit_price),
+        tvaRate: i.tax_rate != null ? Number(i.tax_rate) / 100 : undefined,
       })),
     });
   }
