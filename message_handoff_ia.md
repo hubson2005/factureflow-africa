@@ -225,3 +225,50 @@ negatif — pas faux, juste peu explicite) ni pour la certification FNE
 `trg_webhook_invoice_updated`). Pas un bug, juste une granularite
 absente. A ne traiter que si un client reel en fait la demande — meme
 logique que le connecteur Odoo deprioritise.
+
+## Chantier en cours : ERP multi-tenant (20/08/2026)
+
+`feature/erp-scaffold` (mono-tenant, projet Supabase separe, voir plus haut)
+en cours de conversion multi-tenant directement dans FactureFlow, sur
+demande explicite de Hubert. Nouvelle branche : `feature/erp-multitenant`
+(basee sur `main`).
+
+**Convention actee pour tous les modules ERP a venir** : nommage anglais
+des tables/colonnes (coherent avec le reste du schema : invoices,
+invoice_items, products...), PAS le francais du scaffold original
+(entrepots -> warehouses, mouvements_stock -> stock_movements, etc.).
+Merci de suivre cette convention sur Achats/Tresorerie/RH si vous
+continuez ce chantier.
+
+### Module Stock — DB terminee et testee, front pas encore fait
+
+Migrations appliquees : `erp_stock_module_multitenant`.
+- `products` etendu (sku, purchase_price, stock_alert_threshold, unit,
+  track_stock) plutot que de dupliquer un catalogue `produits` separe
+  (le scaffold en avait besoin uniquement parce que c'etait deux bases
+  differentes — plus necessaire maintenant).
+- Nouvelles tables : `warehouses`, `stock_levels`, `stock_movements`.
+  RLS via `user_role_in_company()` (le scaffold n'isolait que par
+  `auth.role() = 'authenticated'` — faille multi-tenant totale si
+  merge tel quel, cf. section securite plus haut : le module RH/Paie
+  du scaffold a le meme probleme, a traiter avec le meme soin quand
+  on y arrivera).
+- Le webhook HMAC cross-projet du scaffold est remplace par un trigger
+  interne `trg_sync_stock_on_invoice_item` (meme transaction que la
+  creation de facture) : plus besoin d'Edge Function ni de
+  `webhook_events`, plus fiable qu'un webhook fire-and-forget.
+  Quantite negative (avoir) reapprovisionne automatiquement grace au
+  signe deja en place sur les avoirs. Ne bloque jamais la creation
+  d'une facture (produit sans track_stock, ou entreprise sans entrepot
+  par defaut -> ignore silencieusement, pas d'exception).
+
+**Teste par intrusion (cree/verifie/nettoye)** : utilisateur lie
+uniquement a l'entreprise A -> 0 entrepot visible pour B, insertion
+refusee par RLS. Cycle facture -> sortie stock -> avoir -> stock
+revient a 0, verifie avec les vrais montants.
+
+**Reste a faire** : adapter `erp/src/pages/Stock.jsx` et `Produits.jsx`
+du scaffold pour vivre dans l'app FactureFlow (routing, sidebar, auth
+context partagee) au lieu d'etre une app Vite separee. Pas commence.
+Ensuite : Achats/Fournisseurs, Tresorerie, RH (RH en dernier vu la
+sensibilite des donnees de salaire).
