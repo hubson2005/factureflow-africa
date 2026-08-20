@@ -67,6 +67,14 @@ export interface InvoicePDFData {
   notes?: string;
   tvaRate?: number;
   template?: InvoiceTemplateConfig;
+  // Certification FNE (Cote d'Ivoire uniquement). Le QR FNE est un element
+  // reglementaire, independant du QR generique du template (showQrCode) :
+  // il s'affiche des qu'une reference est presente, sans dependre des
+  // reglages de mise en page du modele.
+  fneStatus?: string | null; // 'non_certifiee' | 'simulee' | 'certifiee' | 'erreur'
+  fneReference?: string | null;
+  fneNcc?: string | null;
+  fneQrToken?: string | null;
 }
 
 const DEFAULT_TEMPLATE: InvoiceTemplateConfig = {
@@ -158,13 +166,25 @@ async function buildInvoiceDoc(data: InvoicePDFData): Promise<jsPDF> {
   const fontName = FONT_MAP[tpl.fontFamily || "Inter"] || "helvetica";
   doc.setFont(fontName);
 
-  const tvaRate = data.tvaRate ?? 0.18;
+  // TVA calculee par ligne (chaque ligne peut avoir son propre taux, cf.
+  // moteur TVA multi-pays), puis regroupee par taux pour l'affichage —
+  // au lieu d'un taux unique applique a tout le sous-total, qui masquait
+  // les cas ou plusieurs types de taux (normal/reduit/exonere) coexistent
+  // sur une meme facture.
+  const defaultTvaRate = data.tvaRate ?? 0.18;
   const subtotal = data.items.reduce((s, i) => {
     const lineTotal = i.qty * i.unitPrice;
     const discounted = i.discount ? lineTotal * (1 - i.discount / 100) : lineTotal;
     return s + discounted;
   }, 0);
-  const tva = Math.round(subtotal * tvaRate);
+  const tvaByRate = new Map<number, number>();
+  data.items.forEach((i) => {
+    const lineTotal = i.qty * i.unitPrice;
+    const discounted = i.discount ? lineTotal * (1 - i.discount / 100) : lineTotal;
+    const rate = i.tvaRate ?? defaultTvaRate;
+    tvaByRate.set(rate, (tvaByRate.get(rate) || 0) + discounted * rate);
+  });
+  const tva = Math.round(Array.from(tvaByRate.values()).reduce((s, v) => s + v, 0));
   const total = Math.round(subtotal + tva);
 
   const PR = hexToRgb(tpl.primaryColor);
@@ -307,7 +327,7 @@ async function buildInvoiceDoc(data: InvoicePDFData): Promise<jsPDF> {
         case "description": return i.description;
         case "quantity": return String(i.qty);
         case "unit": return i.unit || "-";
-        case "tva": return Math.round((i.tvaRate ?? tvaRate) * 100) + "%";
+        case "tva": return Math.round((i.tvaRate ?? defaultTvaRate) * 100) + "%";
         case "discount": return i.discount ? i.discount + "%" : "-";
         case "unit_price": return formatCurrency(i.unitPrice, tpl.currency);
         case "total": return formatCurrency(lineTotal, tpl.currency);
@@ -340,8 +360,12 @@ async function buildInvoiceDoc(data: InvoicePDFData): Promise<jsPDF> {
     ? layout.totals
     : { x: 120, y: tY };
 
+  const tvaRatesUsed = Array.from(tvaByRate.entries()).filter(([, amount]) => amount !== 0 || tvaByRate.size === 1);
+  const tvaLineCount = Math.max(tvaRatesUsed.length, 1);
+  const totalsBoxHeight = 14 + tvaLineCount * 9 + 4; // ligne sous-total + N lignes TVA + marge avant le bandeau total
+
   doc.setFillColor(...LG);
-  doc.roundedRect(totalsPos.x, totalsPos.y, 80, 32, 2, 2, "F");
+  doc.roundedRect(totalsPos.x, totalsPos.y, 80, totalsBoxHeight, 2, 2, "F");
 
   doc.setFontSize(9);
   doc.setFont(fontName, "normal");
@@ -350,24 +374,64 @@ async function buildInvoiceDoc(data: InvoicePDFData): Promise<jsPDF> {
   doc.setTextColor(...SD);
   doc.text(formatCurrency(subtotal, tpl.currency), totalsPos.x + 78, totalsPos.y + 9, { align: "right" });
 
-  doc.setTextColor(...AC);
-  doc.text(t.tva + " (" + Math.round(tvaRate * 100) + "%)", totalsPos.x + 4, totalsPos.y + 18);
-  doc.setTextColor(...SD);
-  doc.text(formatCurrency(tva, tpl.currency), totalsPos.x + 78, totalsPos.y + 18, { align: "right" });
+  let tvaLineY = totalsPos.y + 18;
+  if (tvaRatesUsed.length === 0) {
+    doc.setTextColor(...AC);
+    doc.text(t.tva + " (" + Math.round(defaultTvaRate * 100) + "%)", totalsPos.x + 4, tvaLineY);
+    doc.setTextColor(...SD);
+    doc.text(formatCurrency(0, tpl.currency), totalsPos.x + 78, tvaLineY, { align: "right" });
+    tvaLineY += 9;
+  } else {
+    tvaRatesUsed.forEach(([rate, amount]) => {
+      doc.setTextColor(...AC);
+      doc.text(t.tva + " (" + Math.round(rate * 100) + "%)", totalsPos.x + 4, tvaLineY);
+      doc.setTextColor(...SD);
+      doc.text(formatCurrency(amount, tpl.currency), totalsPos.x + 78, tvaLineY, { align: "right" });
+      tvaLineY += 9;
+    });
+  }
 
   doc.setDrawColor(...PR);
   doc.setLineWidth(0.4);
-  doc.line(totalsPos.x + 4, totalsPos.y + 22, totalsPos.x + 78, totalsPos.y + 22);
+  doc.line(totalsPos.x + 4, tvaLineY - 5, totalsPos.x + 78, tvaLineY - 5);
 
   doc.setFillColor(...PR);
-  doc.roundedRect(totalsPos.x, totalsPos.y + 24, 80, 12, 2, 2, "F");
+  doc.roundedRect(totalsPos.x, tvaLineY - 3, 80, 12, 2, 2, "F");
   doc.setTextColor(...WH);
   doc.setFontSize(10);
   doc.setFont(fontName, "bold");
-  doc.text(t.totalTtc, totalsPos.x + 4, totalsPos.y + 32);
-  doc.text(formatCurrency(total, tpl.currency), totalsPos.x + 78, totalsPos.y + 32, { align: "right" });
+  doc.text(t.totalTtc, totalsPos.x + 4, tvaLineY + 5);
+  doc.text(formatCurrency(total, tpl.currency), totalsPos.x + 78, tvaLineY + 5, { align: "right" });
 
-  let cursorY = tY + 42;
+  let cursorY = tvaLineY + 5 + 20;
+
+  // Bloc FNE (Cote d'Ivoire) — element reglementaire, affiche des qu'une
+  // reference existe, independamment des reglages QR generiques du modele.
+  if (data.fneReference && data.fneStatus && data.fneStatus !== "non_certifiee") {
+    const fneIsSimulated = data.fneStatus === "simulee";
+    const fneBoxHeight = data.fneQrToken ? 28 : 16;
+    doc.setFillColor(...(fneIsSimulated ? ([255, 251, 235] as [number, number, number]) : LG));
+    doc.roundedRect(10, cursorY, 100, fneBoxHeight, 2, 2, "F");
+
+    let fneQrDataUrl: string | null = null;
+    if (data.fneQrToken) {
+      fneQrDataUrl = await loadQrCodeDataUrl(data.fneQrToken);
+      if (fneQrDataUrl) doc.addImage(fneQrDataUrl, "PNG", 14, cursorY + 4, 20, 20);
+    }
+    const fneTextX = fneQrDataUrl ? 38 : 14;
+    doc.setFontSize(7.5);
+    doc.setFont(fontName, "bold");
+    doc.setTextColor(...(fneIsSimulated ? ([202, 138, 4] as [number, number, number]) : PR));
+    doc.text(fneIsSimulated ? "CERTIFICATION SIMULEE (aucune valeur fiscale)" : "FACTURE CERTIFIEE FNE", fneTextX, cursorY + 8);
+    doc.setFont(fontName, "normal");
+    doc.setFontSize(7);
+    doc.setTextColor(...AC);
+    doc.text("Ref : " + data.fneReference, fneTextX, cursorY + 14, { maxWidth: 62 });
+    if (data.fneNcc) doc.text("NCC : " + data.fneNcc, fneTextX, cursorY + 19, { maxWidth: 62 });
+
+    cursorY += fneBoxHeight + 6;
+  }
+
 
   if (data.notes) {
     doc.setFillColor(...LG);

@@ -3,6 +3,8 @@ import { ArrowLeft, ArrowRight, Check, Plus, Trash2, User, Package, FileText, Lo
 import { palette, colors, radius, shadow } from "@/theme/tokens";
 import { useClients } from "../../clients/useClients";
 import { useProducts } from "../../products/useProducts";
+import { useCompany } from "../../../hooks/useCompany";
+import { useVatRates, VAT_RATE_TYPE_SHORT_LABELS } from "../../vat/useVatRates";
 
 const font = "'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif";
 
@@ -15,24 +17,41 @@ const STEPS = [
 export function NewQuoteForm({ onClose, onSave, saving }) {
   const { data: clients, isLoading: clientsLoading } = useClients();
   const { data: products } = useProducts();
+  const { data: company } = useCompany();
+  const countryCode = company?.companies?.country_code;
+  const { data: vatRates } = useVatRates(countryCode);
   const [step, setStep] = useState(1);
   const [clientId, setClientId] = useState("");
   const [search, setSearch] = useState("");
   const [validUntil, setValidUntil] = useState("");
   const [notes, setNotes] = useState("");
-  const [items, setItems] = useState([{ id: "1", description: "", qty: 1, unitPrice: 0 }]);
+  const [items, setItems] = useState([{ id: "1", description: "", qty: 1, unitPrice: 0, vatRateType: "normal" }]);
+
+  const ratesByType = {};
+  (vatRates || []).forEach((r) => { ratesByType[r.rate_type] = r; });
+  const hasMultipleRateTypes = (vatRates || []).length > 1;
+  function rateFor(type) {
+    const r = ratesByType[type];
+    return r ? Number(r.rate_percent) / 100 : 0.18;
+  }
 
   const client = (clients || []).find((c) => c.id === clientId);
   const filteredClients = (clients || []).filter((c) => c.name.toLowerCase().includes(search.toLowerCase()));
   const subtotal = items.reduce((s, i) => s + i.qty * i.unitPrice, 0);
-  const tva = subtotal * 0.18;
+  // TVA calculee par ligne selon son type de taux, regroupee pour l'affichage.
+  const tvaByType = {};
+  items.forEach((i) => {
+    const lineTotal = i.qty * i.unitPrice;
+    tvaByType[i.vatRateType] = (tvaByType[i.vatRateType] || 0) + lineTotal * rateFor(i.vatRateType);
+  });
+  const tva = Object.values(tvaByType).reduce((s, v) => s + v, 0);
   const total = subtotal + tva;
 
   const step1Valid = clientId !== "";
   const step2Valid = items.some((i) => i.description.trim() !== "" && i.unitPrice > 0);
 
   function addItem() {
-    setItems((prev) => [...prev, { id: Date.now().toString(), description: "", qty: 1, unitPrice: 0 }]);
+    setItems((prev) => [...prev, { id: Date.now().toString(), description: "", qty: 1, unitPrice: 0, vatRateType: "normal" }]);
   }
   function removeItem(id) { setItems((prev) => prev.filter((i) => i.id !== id)); }
   function updateItem(id, field, value) {
@@ -157,6 +176,26 @@ export function NewQuoteForm({ onClose, onSave, saving }) {
                     placeholder="Description..."
                     style={{ padding: "9px 12px", borderRadius: radius.md, border: "1px solid " + colors.gray[200],
                       fontSize: 13, fontFamily: font, color: colors.gray[900], outline: "none", background: colors.white }} />
+                  {hasMultipleRateTypes && (
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 600, color: colors.gray[600] }}>Regime TVA</label>
+                      <select value={item.vatRateType} onChange={(e) => updateItem(item.id, "vatRateType", e.target.value)}
+                        style={{ width: "100%", marginTop: 3, padding: "9px 10px", borderRadius: radius.md, border: "1px solid " + colors.gray[200],
+                          fontSize: 13, fontFamily: font, color: colors.gray[900], outline: "none", background: colors.white, boxSizing: "border-box" }}>
+                        {(vatRates || []).map((r) => (
+                          <option key={r.rate_type} value={r.rate_type}>
+                            {(VAT_RATE_TYPE_SHORT_LABELS[r.rate_type] || r.rate_type) + " (" + Number(r.rate_percent) + "%)"}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  {item.vatRateType === "exonere" && (
+                    <input value={item.vatExemptionReason || ""} onChange={(e) => updateItem(item.id, "vatExemptionReason", e.target.value)}
+                      placeholder="Motif d'exoneration (optionnel)..."
+                      style={{ padding: "9px 12px", borderRadius: radius.md, border: "1px solid " + colors.gray[200],
+                        fontSize: 12.5, fontFamily: font, color: colors.gray[700], outline: "none", background: colors.white }} />
+                  )}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
                     <div>
                       <label style={{ fontSize: 11, fontWeight: 600, color: colors.gray[600] }}>Qte</label>
@@ -235,10 +274,14 @@ export function NewQuoteForm({ onClose, onSave, saving }) {
                     <span style={{ fontSize: 13, color: colors.gray[600] }}>Sous-total</span>
                     <span style={{ fontSize: 13, color: colors.gray[900] }}>{subtotal.toLocaleString("fr-FR") + " FCFA"}</span>
                   </div>
-                  <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span style={{ fontSize: 13, color: colors.gray[600] }}>TVA (18%)</span>
-                    <span style={{ fontSize: 13, color: colors.gray[900] }}>{tva.toLocaleString("fr-FR") + " FCFA"}</span>
-                  </div>
+                  {Object.entries(tvaByType).map(([type, amount]) => (
+                    <div key={type} style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ fontSize: 13, color: colors.gray[600] }}>
+                        {"TVA " + (VAT_RATE_TYPE_SHORT_LABELS[type] || type).toLowerCase() + " (" + Math.round(rateFor(type) * 100) + "%)"}
+                      </span>
+                      <span style={{ fontSize: 13, color: colors.gray[900] }}>{Math.round(amount).toLocaleString("fr-FR") + " FCFA"}</span>
+                    </div>
+                  ))}
                   <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 0 0",
                     borderTop: "2px solid " + colors.gray[900], marginTop: 4 }}>
                     <span style={{ fontSize: 15, fontWeight: 700, color: colors.gray[900] }}>Total</span>

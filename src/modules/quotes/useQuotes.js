@@ -9,7 +9,7 @@ export function useQuotes() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("quotes")
-        .select("*, clients(name, email), quote_items(id, description, quantity, unit_price, line_total)")
+        .select("*, clients(name, email), quote_items(id, description, quantity, unit_price, line_total, tax_rate, vat_rate_type)")
         .eq("company_id", company.company_id)
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -55,7 +55,10 @@ export function useCreateQuote() {
         .select()
         .single();
       if (quoteErr) throw quoteErr;
-      const taxRate = Number(company.companies?.tax_rate || 18);
+      // tax_rate laisse a null : trg_auto_fill_vat_rate_quote le calcule cote base
+      // via get_current_vat_rate(pays, type). Meme piege que sur les factures : ne
+      // jamais envoyer de valeur en dur (le DEFAULT de colonne court-circuiterait
+      // le trigger si la colonne etait omise plutot que mise a null).
       const rows = items
         .filter((i) => i.description.trim() !== "" && i.unitPrice > 0)
         .map((i) => ({
@@ -63,7 +66,9 @@ export function useCreateQuote() {
           description: i.description,
           quantity: i.qty,
           unit_price: i.unitPrice,
-          tax_rate: taxRate,
+          tax_rate: null,
+          vat_rate_type: i.vatRateType || "normal",
+          vat_exemption_reason: i.vatRateType === "exonere" ? (i.vatExemptionReason || null) : null,
           line_total: i.qty * i.unitPrice,
         }));
       const { error: itemsErr } = await supabase.from("quote_items").insert(rows);

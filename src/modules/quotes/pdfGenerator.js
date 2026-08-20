@@ -6,9 +6,18 @@ const fmt = (n) => Math.round(n).toLocaleString("fr-FR").replace(/\u202F/g, " ")
 export function generateQuotePDF(data) {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const W = 210;
-  const tvaRate = data.tvaRate ?? 0.18;
+  const defaultTvaRate = data.tvaRate ?? 0.18;
   const subtotal = data.items.reduce((s, i) => s + i.qty * i.unitPrice, 0);
-  const tva = Math.round(subtotal * tvaRate);
+  // TVA regroupee par taux distinct (moteur TVA multi-pays) : chaque ligne peut
+  // avoir son propre taux (i.tvaRate), sinon on retombe sur le taux global.
+  const tvaByRate = new Map();
+  data.items.forEach((i) => {
+    const rate = i.tvaRate ?? defaultTvaRate;
+    const amount = i.qty * i.unitPrice * rate;
+    tvaByRate.set(rate, (tvaByRate.get(rate) || 0) + amount);
+  });
+  const tvaRatesUsed = Array.from(tvaByRate.entries());
+  const tva = Math.round(Array.from(tvaByRate.values()).reduce((s, v) => s + v, 0));
   const total = Math.round(subtotal + tva);
 
   const OG = [249, 115, 22];
@@ -113,9 +122,11 @@ export function generateQuotePDF(data) {
   });
 
   const tY = doc.lastAutoTable.finalY + 6;
+  const tvaLineCount = Math.max(tvaRatesUsed.length, 1);
+  const boxHeight = 14 + tvaLineCount * 9 + 12;
 
   doc.setFillColor(...LG);
-  doc.roundedRect(120, tY, 80, 32, 2, 2, "F");
+  doc.roundedRect(120, tY, 80, boxHeight, 2, 2, "F");
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
@@ -124,22 +135,34 @@ export function generateQuotePDF(data) {
   doc.setTextColor(...BK);
   doc.text(fmt(subtotal) + " FCFA", 198, tY + 9, { align: "right" });
 
-  doc.setTextColor(...GR);
-  doc.text("TVA (" + Math.round(tvaRate * 100) + "%)", 124, tY + 18);
-  doc.setTextColor(...BK);
-  doc.text(fmt(tva) + " FCFA", 198, tY + 18, { align: "right" });
+  let vy = tY + 18;
+  if (tvaRatesUsed.length === 0) {
+    doc.setTextColor(...GR);
+    doc.text("TVA (" + Math.round(defaultTvaRate * 100) + "%)", 124, vy);
+    doc.setTextColor(...BK);
+    doc.text(fmt(0) + " FCFA", 198, vy, { align: "right" });
+    vy += 9;
+  } else {
+    tvaRatesUsed.forEach(([rate, amount]) => {
+      doc.setTextColor(...GR);
+      doc.text("TVA (" + Math.round(rate * 100) + "%)", 124, vy);
+      doc.setTextColor(...BK);
+      doc.text(fmt(amount) + " FCFA", 198, vy, { align: "right" });
+      vy += 9;
+    });
+  }
 
   doc.setDrawColor(...OG);
   doc.setLineWidth(0.4);
-  doc.line(124, tY + 22, 198, tY + 22);
+  doc.line(124, vy - 4, 198, vy - 4);
 
   doc.setFillColor(...OG);
-  doc.roundedRect(120, tY + 24, 80, 12, 2, 2, "F");
+  doc.roundedRect(120, vy - 2, 80, 12, 2, 2, "F");
   doc.setTextColor(...WH);
   doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
-  doc.text("TOTAL TTC", 124, tY + 32);
-  doc.text(fmt(total) + " FCFA", 198, tY + 32, { align: "right" });
+  doc.text("TOTAL TTC", 124, vy + 6);
+  doc.text(fmt(total) + " FCFA", 198, vy + 6, { align: "right" });
 
   if (data.notes) {
     const nY = tY + 42;
