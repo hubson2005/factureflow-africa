@@ -74,6 +74,47 @@ Avant toute migration ou tout developpement frontend consequent :
   Prochaine etape logique si besoin : ajouter un 5e pays, ou traiter
   un des autres points "on the horizon" (audits/avoirs, responsive).
 
+## Correctifs appliques (20/08/2026)
+
+### create_credit_note() — faille d'autorisation (SECURITE)
+
+**Trouve par audit fonctionnel avant merge vers `main`** (voir regle d'or).
+`create_credit_note()` (RPC, `EXECUTE` accorde a `authenticated` et meme
+`anon`) ne verifiait jamais que l'appelant avait un role dans l'entreprise
+proprietaire de la facture — contrairement a
+`calculate_invoice_compliance_score()` qui fait deja ce controle.
+
+Preuve par scenario controle (entreprises de test, nettoyees ensuite) :
+un utilisateur n'ayant acces qu'a l'entreprise A a pu faire progresser
+`create_credit_note()` jusqu'a l'insertion de la ligne `invoices` chez
+l'entreprise B, stoppe uniquement **par accident** par le trigger
+`invoices_compliance_recalc` (qui vérifie les droits mais n'a pas été
+conçu pour jouer ce rôle de garde-fou). Si ce trigger est un jour
+desactive/refactore, la faille redevient pleinement exploitable :
+creation d'avoirs frauduleux sur les factures d'une autre entreprise,
+consommation de sa numerotation.
+
+**Correctif appliqué** (migration `fix_create_credit_note_authz_and_vat_type`) :
+ajout d'une verification explicite `user_role_in_company()` en tete de
+fonction, meme pattern que `calculate_invoice_compliance_score()`.
+Revalide : l'intrusion echoue desormais immediatement ("Acces refuse"
+a la ligne de la nouvelle verification, avant toute ecriture), le cas
+legitime fonctionne toujours normalement.
+
+**Bug mineur corrige au passage** : les lignes de l'avoir ne recopiaient
+pas `vat_rate_type`/`vat_exemption_reason` depuis la facture d'origine
+(retombaient sur le defaut `'normal'`/`null`). `tax_rate` etait deja
+correct donc aucun impact financier, juste une incoherence de reporting.
+Revalide : un avoir sur une ligne `exonere` affiche desormais bien
+`vat_rate_type='exonere'` et le motif d'origine.
+
+**Lecon** : pour toute fonction `SECURITY DEFINER` appelable en RPC,
+verifier explicitement `user_role_in_company()` (ou equivalent) en
+premiere instruction — ne jamais compter sur un trigger d'un autre
+sous-systeme pour jouer ce role, meme s'il semble le faire aujourd'hui.
+A verifier sur les autres fonctions `SECURITY DEFINER` du projet avant
+le merge vers `main`.
+
 ## Incidents (pour eviter de les reproduire)
 
 ### 19/08/2026 — Collision sur `refactor/socialapp-to-factureflow`
