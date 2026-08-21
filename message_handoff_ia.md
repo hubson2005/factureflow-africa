@@ -279,3 +279,23 @@ confirmee, jeu de donnees complet cree/verifie/nettoye.
 **Reste a faire** : Achats/Fournisseurs, Tresorerie, RH (RH en dernier
 vu la sensibilite des donnees de salaire — meme methode : company_id +
 RLS via user_role_in_company + test d'intrusion avant tout merge).
+
+### Module Achats/Fournisseurs — TERMINE (DB + front)
+
+Migration `erp_purchases_module_multitenant` + commit `d039faf`. Page
+`/purchases` (section Finances, a cote de Paiements). Gestion
+fournisseurs, commandes multi-lignes, reception (partielle repetable)
+qui incremente automatiquement le stock via `stock_movements` (reutilise
+le mecanisme du module Stock). Teste par intrusion cross-tenant
+(cree/verifie/nettoye) : RLS bloque en amont (postgres n'a pas
+BYPASSRLS sur ce projet), verification explicite dans
+`receive_purchase()` en filet de securite -- double protection.
+
+**Dependance explicite pour la suite (Tresorerie)** : le scaffold
+original avait un bouton "Marquer paye" sur chaque achat, relie a une
+table `comptes` et une fonction `marquer_achat_paye()` -- appartient
+au module Tresorerie, pas encore construit. Volontairement absent du
+front actuel. Quand Tresorerie sera fait, revenir sur
+`src/pages/Purchases.tsx` (`PurchaseCard`) pour ajouter ce bouton.
+
+**Reste a faire pour l'ERP complet** : Tresorerie, RH (RH en dernier).
