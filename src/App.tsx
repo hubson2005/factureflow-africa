@@ -11,6 +11,7 @@ import Clients from "./pages/Clients";
 import ClientDetail from "./pages/ClientDetail";
 import Products from "./pages/Products";
 import Stock from "./pages/Stock";
+import Purchases from "./pages/Purchases";
 import Quotes from "./pages/Quotes";
 import Invoices from "./pages/Invoices";
 import RecurringInvoices from "./pages/RecurringInvoices";
@@ -87,6 +88,7 @@ export default function App() {
           <Route path="/clients/:id" element={<ClientDetail />} />
           <Route path="/products" element={<Products />} />
           <Route path="/stock" element={<Stock />} />
+          <Route path="/purchases" element={<Purchases />} />
           <Route path="/quotes" element={<Quotes />} />
           <Route path="/invoices" element={<Invoices />} />
           <Route path="/recurring-invoices" element={<RecurringInvoices />} />
