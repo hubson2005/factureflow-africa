@@ -299,3 +299,45 @@ front actuel. Quand Tresorerie sera fait, revenir sur
 `src/pages/Purchases.tsx` (`PurchaseCard`) pour ajouter ce bouton.
 
 **Reste a faire pour l'ERP complet** : Tresorerie, RH (RH en dernier).
+
+### Module Tresorerie — TERMINE (DB + front)
+
+Migration `erp_treasury_module_multitenant` + commit `41cdb5e`. Page
+`/accounts` (nav "Comptes", section Finances) -- volontairement PAS
+appelee "Tresorerie" dans le menu pour eviter la collision avec la
+page existante `/cashflow` (outil de PREVISION/forecast, fonctionnalite
+totalement differente de la comptabilite reelle construite ici).
+
+Encaissements/decaissements generes automatiquement par des triggers
+internes sur `payments` et `expenses` (pas de webhook, contrairement
+au scaffold original). `mark_purchase_paid()` ferme la boucle laissee
+ouverte par le module Achats -- le bouton "Marquer paye" est
+maintenant dans `/accounts` (section "Achats a payer"), pas dans
+`/purchases`.
+
+Teste par intrusion (cree/verifie/nettoye) + cycle complet valide au
+centime pres (encaissement + 2 decaissements -> solde exact).
+
+**BUGFIX CRITIQUE trouve en testant ce module** (sans rapport avec la
+tresorerie elle-meme, migration `fix_trg_audit_payment_recorded_broken_signature`) :
+`trg_audit_payment_recorded()` appelait `log_audit_event()` avec les
+arguments 5 et 6 inverses (texte au lieu du jsonb attendu par la
+signature reelle). **Consequence : tout enregistrement de paiement
+client echouait en production** (l'insert dans `payments` etait
+annule par l'exception du trigger d'audit). Corrige et revalide par
+insertion reelle. Si vous avez deja rencontre des paiements qui
+"ne s'enregistrent pas" sans comprendre pourquoi, c'etait ca.
+
+**Trouve mais PAS corrige, a nettoyer plus tard** : `payments` a des
+triggers dupliques (`audit_payment_insert` + `audit_payment_recorded`,
+`trg_payments_webhook` + `webhook_payment_received`) -- signe d'une
+collision entre sessions IA anterieure a celle-ci. Pas touche pour
+rester concentre sur le chantier ERP, mais a comparer/dedupliquer un
+jour.
+
+**Reste a faire pour l'ERP complet** : RH (dernier module, donnees de
+salaire -- meme methode stricte : company_id + RLS +
+user_role_in_company + test d'intrusion avant tout merge, en portant
+une attention particuliere a ce qu'aucune colonne ne soit oubliee
+dans la conversion, contrairement au risque signale des le debut de
+ce chantier).
