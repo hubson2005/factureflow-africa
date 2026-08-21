@@ -82,6 +82,7 @@ export const sidebarNav: NavItem[] = [
   { icon: Warehouse, label: "Stock", path: "/stock" },
   { icon: CreditCard, label: "Paiements", path: "/payments" },
   { icon: Truck, label: "Achats", path: "/purchases" },
+  { icon: Landmark, label: "Comptes", path: "/accounts" },
   { icon: ShieldAlert, label: "Recouvrement IA", path: "/recovery", badge: "IA" },
   { icon: Zap, label: "Automatisation", path: "/automation" },
   { icon: Receipt, label: "Dépenses", path: "/expenses" },
