@@ -267,8 +267,15 @@ uniquement a l'entreprise A -> 0 entrepot visible pour B, insertion
 refusee par RLS. Cycle facture -> sortie stock -> avoir -> stock
 revient a 0, verifie avec les vrais montants.
 
-**Reste a faire** : adapter `erp/src/pages/Stock.jsx` et `Produits.jsx`
-du scaffold pour vivre dans l'app FactureFlow (routing, sidebar, auth
-context partagee) au lieu d'etre une app Vite separee. Pas commence.
-Ensuite : Achats/Fournisseurs, Tresorerie, RH (RH en dernier vu la
-sensibilite des donnees de salaire).
+### Module Stock — TERMINE (DB + front)
+
+DB (migration `erp_stock_module_multitenant`) et front (commit
+`ac46914`) tous les deux faits et testes. Page `/stock` accessible
+depuis la sidebar (section Relations, a cote de Produits). Toggle
+"Suivre le stock" ajoute a la fiche produit (categorie "Produit"
+uniquement). Build de production valide, forme des donnees PostgREST
+confirmee, jeu de donnees complet cree/verifie/nettoye.
+
+**Reste a faire** : Achats/Fournisseurs, Tresorerie, RH (RH en dernier
+vu la sensibilite des donnees de salaire — meme methode : company_id +
+RLS via user_role_in_company + test d'intrusion avant tout merge).
