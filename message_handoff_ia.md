@@ -388,3 +388,63 @@ peut-etre a :
   l'audit complet fait plus haut sur les fonctions preexistantes,
   si une nouvelle session veut faire un tour de verification
   independant avant le merge.
+
+## Passage de securite sur les fonctions ERP -- FAIT (21/08/2026)
+
+Audit systematique des 8 fonctions SECURITY DEFINER creees pendant ce
+chantier (receive_purchase, mark_purchase_paid, pay_payslip,
+sync_stock_on_invoice_item, sync_treasury_on_payment,
+sync_treasury_on_expense, apply_stock_movement, apply_treasury_transaction),
+avant merge vers `main`.
+
+### Faille critique trouvee et corrigee : compte tresorerie d'une autre entreprise
+
+`mark_purchase_paid()` et `pay_payslip()` verifiaient l'acces a
+l'achat/bulletin d'un cote et au compte de l'autre, **mais jamais que
+les deux appartenaient a la meme entreprise**. Un utilisateur ayant
+legitimement acces a plusieurs entreprises (comptable multi-clients,
+cas reel et supporte par `company_users`) pouvait payer l'achat ou le
+salaire d'une entreprise A en debitant le compte d'une entreprise B.
+
+**Prouve empiriquement** avant correctif : achat de 30000 FCFA chez A,
+paye avec le compte de B -> solde de A reste a 0, solde de B debite de
+-30000. Incoherence financiere reelle, pas juste theorique.
+
+**Corrige** (migration `fix_cross_company_account_mismatch`) : les
+deux fonctions verifient maintenant explicitement
+`v_account_company_id = v_purchase.company_id` (respectivement
+`v_payslip.company_id`) avant tout mouvement. Revalide : le paiement
+croise est refuse avec un message clair, le paiement avec le bon
+compte fonctionne toujours normalement (solde correct, verifie au
+centime pres).
+
+**Lecon supplementaire** : pour toute fonction SECURITY DEFINER qui
+prend en parametre PLUSIEURS references vers des entites appartenant
+potentiellement a des entreprises differentes (ici : achat + compte),
+ne pas se contenter de verifier l'acces a chacune independamment --
+verifier explicitement qu'elles appartiennent a la MEME entreprise.
+Un utilisateur multi-entreprises legitime peut declencher ce genre de
+bug par erreur, sans meme etre malveillant.
+
+### Verifications complementaires (pas de probleme trouve)
+
+- `sync_stock_on_invoice_item`, `sync_treasury_on_payment`,
+  `sync_treasury_on_expense`, `apply_stock_movement`,
+  `apply_treasury_transaction` : fonctions de trigger (RETURNS
+  trigger), avaient EXECUTE accorde par erreur a anon/authenticated
+  (meme defaut generique que log_audit_event/dispatch_webhook
+  precedemment). Verifie empiriquement qu'un appel direct est de
+  toute facon rejete par Postgres lui-meme ("trigger functions can
+  only be called as triggers"), independamment des droits -- **pas
+  exploitable**, contrairement a log_audit_event/dispatch_webhook qui
+  etaient de vraies fonctions RPC. Droits retires quand meme par
+  principe de moindre privilege (migration
+  `revoke_execute_on_erp_trigger_only_functions`), revalide qu'aucun
+  trigger interne n'est casse par ce retrait.
+- `receive_purchase()` : ne prend qu'un seul parametre (l'achat),
+  l'entrepot est deduit de l'achat lui-meme -- aucun risque de
+  confusion cross-entreprise du meme type que mark_purchase_paid/
+  pay_payslip.
+
+**Le passage de securite est termine. Les 4 modules ERP sont prets
+pour le merge vers `main`, sous reserve de la validation de Hubert.**
