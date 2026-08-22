@@ -66,28 +66,29 @@ export default function HR() {
             onClick={() => setShowEmployeeForm(true)}
           />
         ) : (
-          <div style={{ background: colors.white, border: "1px solid " + colors.gray[200], borderRadius: radius.lg, overflow: "hidden" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "2fr 1.5fr 1fr 1fr", gap: 8, padding: "10px 16px",
-              background: colors.gray[50], borderBottom: "1px solid " + colors.gray[200] }}>
-              {["Nom", "Poste", "Salaire mensuel", "Statut"].map((h) => (
-                <span key={h} style={{ fontSize: 11, fontWeight: 700, color: colors.gray[600], textTransform: "uppercase" }}>{h}</span>
-              ))}
-            </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {employees.map((e) => (
-              <div key={e.id} style={{ display: "grid", gridTemplateColumns: "2fr 1.5fr 1fr 1fr", gap: 8, padding: "12px 16px",
-                borderBottom: "1px solid " + colors.gray[100], alignItems: "center" }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: colors.gray[900] }}>{e.first_name} {e.last_name}</span>
-                <span style={{ fontSize: 13, color: colors.gray[700] }}>{e.position || "—"}</span>
-                <span style={{ fontSize: 13, fontWeight: 600, color: colors.gray[900] }}>
-                  {Number(e.monthly_salary).toLocaleString("fr-FR")} FCFA
-                </span>
-                <span style={{
-                  width: "fit-content", padding: "3px 9px", borderRadius: radius.full, fontSize: 11, fontWeight: 700,
-                  background: e.status === "actif" ? palette.green[50] : colors.gray[100],
-                  color: e.status === "actif" ? palette.green.text : colors.gray[600],
-                }}>
-                  {e.status === "actif" ? "Actif" : "Inactif"}
-                </span>
+              <div key={e.id} className="ff-card" style={{ background: colors.white, borderRadius: radius.lg,
+                padding: 16, border: "1px solid " + colors.gray[100], boxShadow: shadow.card,
+                display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                <div style={{ flex: 1, minWidth: 140 }}>
+                  <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: colors.gray[900] }}>
+                    {e.first_name} {e.last_name}
+                  </p>
+                  <p style={{ margin: "2px 0 0", fontSize: 12, color: colors.gray[500] }}>{e.position || "—"}</p>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: colors.gray[900] }}>
+                    {Number(e.monthly_salary).toLocaleString("fr-FR")} FCFA
+                  </span>
+                  <span style={{
+                    width: "fit-content", padding: "3px 9px", borderRadius: radius.full, fontSize: 11, fontWeight: 700,
+                    background: e.status === "actif" ? palette.green[50] : colors.gray[100],
+                    color: e.status === "actif" ? palette.green.text : colors.gray[600],
+                  }}>
+                    {e.status === "actif" ? "Actif" : "Inactif"}
+                  </span>
+                </div>
               </div>
             ))}
           </div>

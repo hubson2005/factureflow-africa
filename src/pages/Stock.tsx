@@ -97,36 +97,34 @@ function StockTable({ levels }) {
   }
 
   return (
-    <div style={{ background: colors.white, border: "1px solid " + colors.gray[200], borderRadius: radius.lg, overflow: "hidden" }}>
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 8, padding: "10px 16px",
-        background: colors.gray[50], borderBottom: "1px solid " + colors.gray[200] }}>
-        {["Produit", "Entrepot", "Quantite", "Statut"].map((h) => (
-          <span key={h} style={{ fontSize: 11, fontWeight: 700, color: colors.gray[600], textTransform: "uppercase", letterSpacing: 0.3 }}>{h}</span>
-        ))}
-      </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       {levels.map((l) => {
         const threshold = l.product?.stock_alert_threshold ?? 0;
         const low = Number(l.quantity) <= threshold;
         return (
-          <div key={l.id} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 8, padding: "12px 16px",
-            borderBottom: "1px solid " + colors.gray[100], alignItems: "center" }}>
-            <div>
-              <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: colors.gray[900] }}>{l.product?.name}</p>
-              {l.product?.sku && <p style={{ margin: "1px 0 0", fontSize: 11, color: colors.gray[500], fontFamily: "monospace" }}>{l.product.sku}</p>}
+          <div key={l.id} className="ff-card" style={{ background: colors.white, borderRadius: radius.lg,
+            padding: 16, border: "1px solid " + colors.gray[100], boxShadow: shadow.card,
+            display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <div style={{ flex: 1, minWidth: 140 }}>
+              <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: colors.gray[900] }}>{l.product?.name}</p>
+              <p style={{ margin: "2px 0 0", fontSize: 12, color: colors.gray[500] }}>
+                {l.warehouse?.name}{l.product?.sku && " · " + l.product.sku}
+              </p>
             </div>
-            <span style={{ fontSize: 13, color: colors.gray[700] }}>{l.warehouse?.name}</span>
-            <span style={{ fontSize: 13, fontWeight: 600, color: colors.gray[900] }}>
-              {Number(l.quantity).toLocaleString("fr-FR")} {l.product?.unit}
-            </span>
-            <span style={{
-              display: "inline-flex", alignItems: "center", gap: 4, width: "fit-content",
-              padding: "3px 9px", borderRadius: radius.full, fontSize: 11, fontWeight: 700,
-              background: low ? palette.danger[50] : palette.green[50],
-              color: low ? palette.danger.solid : palette.green.text,
-            }}>
-              {low && <AlertTriangle size={11} />}
-              {low ? "Seuil bas" : "OK"}
-            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: colors.gray[900] }}>
+                {Number(l.quantity).toLocaleString("fr-FR")} {l.product?.unit}
+              </span>
+              <span style={{
+                display: "inline-flex", alignItems: "center", gap: 4, width: "fit-content",
+                padding: "3px 9px", borderRadius: radius.full, fontSize: 11, fontWeight: 700,
+                background: low ? palette.danger[50] : palette.green[50],
+                color: low ? palette.danger.solid : palette.green.text,
+              }}>
+                {low && <AlertTriangle size={11} />}
+                {low ? "Seuil bas" : "OK"}
+              </span>
+            </div>
           </div>
         );
       })}
