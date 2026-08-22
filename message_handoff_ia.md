@@ -341,3 +341,50 @@ user_role_in_company + test d'intrusion avant tout merge, en portant
 une attention particuliere a ce qu'aucune colonne ne soit oubliee
 dans la conversion, contrairement au risque signale des le debut de
 ce chantier).
+
+### Module RH — TERMINE (DB + front) — LES 4 MODULES ERP SONT FINIS
+
+Migration `erp_hr_module_multitenant` + commit `098c0ea`. Page `/hr`,
+nouvelle section de navigation dediee "Ressources humaines" (separee
+de "Finances", visibilite volontaire vu la sensibilite du module).
+
+`pay_payslip()` ferme la derniere boucle : decaissement tresorerie
+categorie 'salaire', meme pattern de verification explicite que
+`mark_purchase_paid()`.
+
+**Teste avec une rigueur au-dela du standard des autres modules**
+(justifie par la sensibilite des donnees de salaire) : en plus du
+cree/verifie/nettoye habituel, verification explicite qu'un UPDATE
+malveillant sur le salaire d'un employe d'une autre entreprise n'a
+AUCUN effet (pas seulement que le SELECT retourne 0 lignes -- le
+salaire reel a ete relu apres la tentative et confirme inchange).
+`pay_payslip()` sur le bulletin d'une autre entreprise refuse, 0
+transaction de tresorerie frauduleuse creee. Cycle complet valide au
+centime pres pour le cas legitime.
+
+---
+
+## BILAN : les 4 modules ERP (Stock, Achats, Tresorerie, RH) sont
+## termines -- DB + front + tests d'intrusion + documentation
+
+Toute la conversion mono-tenant -> multi-tenant de `feature/erp-scaffold`
+est faite sur la branche `feature/erp-multitenant` (derniere reference
+locale a synchroniser : commit `098c0ea` au 21/08/2026). Chaque module
+a ete teste par un scenario d'intrusion reel (deux entreprises de
+test, tentative d'acces croisee, verification, nettoyage) avant
+d'etre considere termine.
+
+**PAS ENCORE MERGE vers `main`** -- attente de validation de Hubert
+avant que ca touche la production Vercel. Avant de merger, il reste
+peut-etre a :
+- Nettoyer les doublons de triggers sur `payments` (voir section
+  Tresorerie plus haut) -- pas bloquant mais signale
+- Verifier qu'aucun autre webhook/trigger externe au perimetre ERP ne
+  depend du `webhook_events` du scaffold original (on ne l'a jamais
+  cree cote multi-tenant -- tout passe par des triggers internes)
+- Repasser une fois de plus sur les 4 nouvelles fonctions
+  SECURITY DEFINER (receive_purchase, mark_purchase_paid, pay_payslip,
+  + les triggers sync_stock/sync_treasury) avec le meme regard que
+  l'audit complet fait plus haut sur les fonctions preexistantes,
+  si une nouvelle session veut faire un tour de verification
+  independant avant le merge.
