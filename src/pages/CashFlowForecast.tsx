@@ -351,8 +351,8 @@ export default function CashFlowForecast() {
           </div>
 
           {/* Graphique + Assistant */}
-          <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 12, marginTop: 12 }}>
-            <Card>
+          <div className="ff-row3" style={{ marginTop: 12 }}>
+            <Card style={{ flex: 1.6, minWidth: 280 }}>
               <p style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 700, color: colors.gray[900] }}>
                 Courbe de trésorerie
               </p>
@@ -381,7 +381,7 @@ export default function CashFlowForecast() {
               )}
             </Card>
 
-            <Card>
+            <Card style={{ flex: 1, minWidth: 280 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
                 <div style={{ width: 30, height: 30, borderRadius: radius.md, background: colors.gray[900],
                   display: "flex", alignItems: "center", justifyContent: "center" }}>
