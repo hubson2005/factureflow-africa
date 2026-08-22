@@ -225,3 +225,226 @@ negatif — pas faux, juste peu explicite) ni pour la certification FNE
 `trg_webhook_invoice_updated`). Pas un bug, juste une granularite
 absente. A ne traiter que si un client reel en fait la demande — meme
 logique que le connecteur Odoo deprioritise.
+
+## Chantier en cours : ERP multi-tenant (20/08/2026)
+
+`feature/erp-scaffold` (mono-tenant, projet Supabase separe, voir plus haut)
+en cours de conversion multi-tenant directement dans FactureFlow, sur
+demande explicite de Hubert. Nouvelle branche : `feature/erp-multitenant`
+(basee sur `main`).
+
+**Convention actee pour tous les modules ERP a venir** : nommage anglais
+des tables/colonnes (coherent avec le reste du schema : invoices,
+invoice_items, products...), PAS le francais du scaffold original
+(entrepots -> warehouses, mouvements_stock -> stock_movements, etc.).
+Merci de suivre cette convention sur Achats/Tresorerie/RH si vous
+continuez ce chantier.
+
+### Module Stock — DB terminee et testee, front pas encore fait
+
+Migrations appliquees : `erp_stock_module_multitenant`.
+- `products` etendu (sku, purchase_price, stock_alert_threshold, unit,
+  track_stock) plutot que de dupliquer un catalogue `produits` separe
+  (le scaffold en avait besoin uniquement parce que c'etait deux bases
+  differentes — plus necessaire maintenant).
+- Nouvelles tables : `warehouses`, `stock_levels`, `stock_movements`.
+  RLS via `user_role_in_company()` (le scaffold n'isolait que par
+  `auth.role() = 'authenticated'` — faille multi-tenant totale si
+  merge tel quel, cf. section securite plus haut : le module RH/Paie
+  du scaffold a le meme probleme, a traiter avec le meme soin quand
+  on y arrivera).
+- Le webhook HMAC cross-projet du scaffold est remplace par un trigger
+  interne `trg_sync_stock_on_invoice_item` (meme transaction que la
+  creation de facture) : plus besoin d'Edge Function ni de
+  `webhook_events`, plus fiable qu'un webhook fire-and-forget.
+  Quantite negative (avoir) reapprovisionne automatiquement grace au
+  signe deja en place sur les avoirs. Ne bloque jamais la creation
+  d'une facture (produit sans track_stock, ou entreprise sans entrepot
+  par defaut -> ignore silencieusement, pas d'exception).
+
+**Teste par intrusion (cree/verifie/nettoye)** : utilisateur lie
+uniquement a l'entreprise A -> 0 entrepot visible pour B, insertion
+refusee par RLS. Cycle facture -> sortie stock -> avoir -> stock
+revient a 0, verifie avec les vrais montants.
+
+### Module Stock — TERMINE (DB + front)
+
+DB (migration `erp_stock_module_multitenant`) et front (commit
+`ac46914`) tous les deux faits et testes. Page `/stock` accessible
+depuis la sidebar (section Relations, a cote de Produits). Toggle
+"Suivre le stock" ajoute a la fiche produit (categorie "Produit"
+uniquement). Build de production valide, forme des donnees PostgREST
+confirmee, jeu de donnees complet cree/verifie/nettoye.
+
+**Reste a faire** : Achats/Fournisseurs, Tresorerie, RH (RH en dernier
+vu la sensibilite des donnees de salaire — meme methode : company_id +
+RLS via user_role_in_company + test d'intrusion avant tout merge).
+
+### Module Achats/Fournisseurs — TERMINE (DB + front)
+
+Migration `erp_purchases_module_multitenant` + commit `d039faf`. Page
+`/purchases` (section Finances, a cote de Paiements). Gestion
+fournisseurs, commandes multi-lignes, reception (partielle repetable)
+qui incremente automatiquement le stock via `stock_movements` (reutilise
+le mecanisme du module Stock). Teste par intrusion cross-tenant
+(cree/verifie/nettoye) : RLS bloque en amont (postgres n'a pas
+BYPASSRLS sur ce projet), verification explicite dans
+`receive_purchase()` en filet de securite -- double protection.
+
+**Dependance explicite pour la suite (Tresorerie)** : le scaffold
+original avait un bouton "Marquer paye" sur chaque achat, relie a une
+table `comptes` et une fonction `marquer_achat_paye()` -- appartient
+au module Tresorerie, pas encore construit. Volontairement absent du
+front actuel. Quand Tresorerie sera fait, revenir sur
+`src/pages/Purchases.tsx` (`PurchaseCard`) pour ajouter ce bouton.
+
+**Reste a faire pour l'ERP complet** : Tresorerie, RH (RH en dernier).
+
+### Module Tresorerie — TERMINE (DB + front)
+
+Migration `erp_treasury_module_multitenant` + commit `41cdb5e`. Page
+`/accounts` (nav "Comptes", section Finances) -- volontairement PAS
+appelee "Tresorerie" dans le menu pour eviter la collision avec la
+page existante `/cashflow` (outil de PREVISION/forecast, fonctionnalite
+totalement differente de la comptabilite reelle construite ici).
+
+Encaissements/decaissements generes automatiquement par des triggers
+internes sur `payments` et `expenses` (pas de webhook, contrairement
+au scaffold original). `mark_purchase_paid()` ferme la boucle laissee
+ouverte par le module Achats -- le bouton "Marquer paye" est
+maintenant dans `/accounts` (section "Achats a payer"), pas dans
+`/purchases`.
+
+Teste par intrusion (cree/verifie/nettoye) + cycle complet valide au
+centime pres (encaissement + 2 decaissements -> solde exact).
+
+**BUGFIX CRITIQUE trouve en testant ce module** (sans rapport avec la
+tresorerie elle-meme, migration `fix_trg_audit_payment_recorded_broken_signature`) :
+`trg_audit_payment_recorded()` appelait `log_audit_event()` avec les
+arguments 5 et 6 inverses (texte au lieu du jsonb attendu par la
+signature reelle). **Consequence : tout enregistrement de paiement
+client echouait en production** (l'insert dans `payments` etait
+annule par l'exception du trigger d'audit). Corrige et revalide par
+insertion reelle. Si vous avez deja rencontre des paiements qui
+"ne s'enregistrent pas" sans comprendre pourquoi, c'etait ca.
+
+**Trouve mais PAS corrige, a nettoyer plus tard** : `payments` a des
+triggers dupliques (`audit_payment_insert` + `audit_payment_recorded`,
+`trg_payments_webhook` + `webhook_payment_received`) -- signe d'une
+collision entre sessions IA anterieure a celle-ci. Pas touche pour
+rester concentre sur le chantier ERP, mais a comparer/dedupliquer un
+jour.
+
+**Reste a faire pour l'ERP complet** : RH (dernier module, donnees de
+salaire -- meme methode stricte : company_id + RLS +
+user_role_in_company + test d'intrusion avant tout merge, en portant
+une attention particuliere a ce qu'aucune colonne ne soit oubliee
+dans la conversion, contrairement au risque signale des le debut de
+ce chantier).
+
+### Module RH — TERMINE (DB + front) — LES 4 MODULES ERP SONT FINIS
+
+Migration `erp_hr_module_multitenant` + commit `098c0ea`. Page `/hr`,
+nouvelle section de navigation dediee "Ressources humaines" (separee
+de "Finances", visibilite volontaire vu la sensibilite du module).
+
+`pay_payslip()` ferme la derniere boucle : decaissement tresorerie
+categorie 'salaire', meme pattern de verification explicite que
+`mark_purchase_paid()`.
+
+**Teste avec une rigueur au-dela du standard des autres modules**
+(justifie par la sensibilite des donnees de salaire) : en plus du
+cree/verifie/nettoye habituel, verification explicite qu'un UPDATE
+malveillant sur le salaire d'un employe d'une autre entreprise n'a
+AUCUN effet (pas seulement que le SELECT retourne 0 lignes -- le
+salaire reel a ete relu apres la tentative et confirme inchange).
+`pay_payslip()` sur le bulletin d'une autre entreprise refuse, 0
+transaction de tresorerie frauduleuse creee. Cycle complet valide au
+centime pres pour le cas legitime.
+
+---
+
+## BILAN : les 4 modules ERP (Stock, Achats, Tresorerie, RH) sont
+## termines -- DB + front + tests d'intrusion + documentation
+
+Toute la conversion mono-tenant -> multi-tenant de `feature/erp-scaffold`
+est faite sur la branche `feature/erp-multitenant` (derniere reference
+locale a synchroniser : commit `098c0ea` au 21/08/2026). Chaque module
+a ete teste par un scenario d'intrusion reel (deux entreprises de
+test, tentative d'acces croisee, verification, nettoyage) avant
+d'etre considere termine.
+
+**PAS ENCORE MERGE vers `main`** -- attente de validation de Hubert
+avant que ca touche la production Vercel. Avant de merger, il reste
+peut-etre a :
+- Nettoyer les doublons de triggers sur `payments` (voir section
+  Tresorerie plus haut) -- pas bloquant mais signale
+- Verifier qu'aucun autre webhook/trigger externe au perimetre ERP ne
+  depend du `webhook_events` du scaffold original (on ne l'a jamais
+  cree cote multi-tenant -- tout passe par des triggers internes)
+- Repasser une fois de plus sur les 4 nouvelles fonctions
+  SECURITY DEFINER (receive_purchase, mark_purchase_paid, pay_payslip,
+  + les triggers sync_stock/sync_treasury) avec le meme regard que
+  l'audit complet fait plus haut sur les fonctions preexistantes,
+  si une nouvelle session veut faire un tour de verification
+  independant avant le merge.
+
+## Passage de securite sur les fonctions ERP -- FAIT (21/08/2026)
+
+Audit systematique des 8 fonctions SECURITY DEFINER creees pendant ce
+chantier (receive_purchase, mark_purchase_paid, pay_payslip,
+sync_stock_on_invoice_item, sync_treasury_on_payment,
+sync_treasury_on_expense, apply_stock_movement, apply_treasury_transaction),
+avant merge vers `main`.
+
+### Faille critique trouvee et corrigee : compte tresorerie d'une autre entreprise
+
+`mark_purchase_paid()` et `pay_payslip()` verifiaient l'acces a
+l'achat/bulletin d'un cote et au compte de l'autre, **mais jamais que
+les deux appartenaient a la meme entreprise**. Un utilisateur ayant
+legitimement acces a plusieurs entreprises (comptable multi-clients,
+cas reel et supporte par `company_users`) pouvait payer l'achat ou le
+salaire d'une entreprise A en debitant le compte d'une entreprise B.
+
+**Prouve empiriquement** avant correctif : achat de 30000 FCFA chez A,
+paye avec le compte de B -> solde de A reste a 0, solde de B debite de
+-30000. Incoherence financiere reelle, pas juste theorique.
+
+**Corrige** (migration `fix_cross_company_account_mismatch`) : les
+deux fonctions verifient maintenant explicitement
+`v_account_company_id = v_purchase.company_id` (respectivement
+`v_payslip.company_id`) avant tout mouvement. Revalide : le paiement
+croise est refuse avec un message clair, le paiement avec le bon
+compte fonctionne toujours normalement (solde correct, verifie au
+centime pres).
+
+**Lecon supplementaire** : pour toute fonction SECURITY DEFINER qui
+prend en parametre PLUSIEURS references vers des entites appartenant
+potentiellement a des entreprises differentes (ici : achat + compte),
+ne pas se contenter de verifier l'acces a chacune independamment --
+verifier explicitement qu'elles appartiennent a la MEME entreprise.
+Un utilisateur multi-entreprises legitime peut declencher ce genre de
+bug par erreur, sans meme etre malveillant.
+
+### Verifications complementaires (pas de probleme trouve)
+
+- `sync_stock_on_invoice_item`, `sync_treasury_on_payment`,
+  `sync_treasury_on_expense`, `apply_stock_movement`,
+  `apply_treasury_transaction` : fonctions de trigger (RETURNS
+  trigger), avaient EXECUTE accorde par erreur a anon/authenticated
+  (meme defaut generique que log_audit_event/dispatch_webhook
+  precedemment). Verifie empiriquement qu'un appel direct est de
+  toute facon rejete par Postgres lui-meme ("trigger functions can
+  only be called as triggers"), independamment des droits -- **pas
+  exploitable**, contrairement a log_audit_event/dispatch_webhook qui
+  etaient de vraies fonctions RPC. Droits retires quand meme par
+  principe de moindre privilege (migration
+  `revoke_execute_on_erp_trigger_only_functions`), revalide qu'aucun
+  trigger interne n'est casse par ce retrait.
+- `receive_purchase()` : ne prend qu'un seul parametre (l'achat),
+  l'entrepot est deduit de l'achat lui-meme -- aucun risque de
+  confusion cross-entreprise du meme type que mark_purchase_paid/
+  pay_payslip.
+
+**Le passage de securite est termine. Les 4 modules ERP sont prets
+pour le merge vers `main`, sous reserve de la validation de Hubert.**

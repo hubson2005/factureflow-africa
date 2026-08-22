@@ -20,6 +20,9 @@ export function NewProductForm({ onClose, onSave, saving }) {
   const [category, setCategory] = useState("Service");
   const [unitPrice, setUnitPrice] = useState("");
   const [taxRate, setTaxRate] = useState("18");
+  const [trackStock, setTrackStock] = useState(false);
+  const [sku, setSku] = useState("");
+  const [stockAlertThreshold, setStockAlertThreshold] = useState("0");
 
   const isValid = name.trim() !== "" && Number(unitPrice) > 0;
 
@@ -30,6 +33,9 @@ export function NewProductForm({ onClose, onSave, saving }) {
       category,
       unitPrice: Number(unitPrice),
       taxRate: Number(taxRate),
+      trackStock: category === "Produit" && trackStock,
+      sku: sku || null,
+      stockAlertThreshold: Number(stockAlertThreshold) || 0,
     });
   }
 
@@ -98,6 +104,33 @@ export function NewProductForm({ onClose, onSave, saving }) {
                 fontSize: 14, fontFamily: font, color: colors.gray[900], outline: "none", background: colors.white,
                 resize: "vertical", width: "100%", boxSizing: "border-box" }} />
           </Field>
+
+          {category === "Produit" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: 14, borderRadius: radius.md,
+              border: "1px solid " + colors.gray[200], background: colors.white }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                <input type="checkbox" checked={trackStock} onChange={(e) => setTrackStock(e.target.checked)}
+                  style={{ width: 16, height: 16, cursor: "pointer" }} />
+                <span style={{ fontSize: 13, fontWeight: 600, color: colors.gray[900] }}>Suivre le stock de ce produit</span>
+              </label>
+              {trackStock && (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <Field label="SKU (optionnel)">
+                    <input value={sku} onChange={(e) => setSku(e.target.value)} placeholder="REF-001"
+                      style={{ padding: "10px 12px", borderRadius: radius.md, border: "1px solid " + colors.gray[200],
+                        fontSize: 13, fontFamily: font, color: colors.gray[900], outline: "none", background: colors.white,
+                        width: "100%", boxSizing: "border-box" }} />
+                  </Field>
+                  <Field label="Seuil d'alerte">
+                    <input type="number" min={0} value={stockAlertThreshold} onChange={(e) => setStockAlertThreshold(e.target.value)}
+                      style={{ padding: "10px 12px", borderRadius: radius.md, border: "1px solid " + colors.gray[200],
+                        fontSize: 13, fontFamily: font, color: colors.gray[900], outline: "none", background: colors.white,
+                        width: "100%", boxSizing: "border-box" }} />
+                  </Field>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div style={{ display: "flex", padding: "16px 20px", background: colors.white,

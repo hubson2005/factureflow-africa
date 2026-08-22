@@ -33,6 +33,9 @@ export function useCreateProduct() {
           category: product.category || null,
           unit_price: product.unitPrice,
           tax_rate: product.taxRate ?? 18,
+          track_stock: product.trackStock || false,
+          sku: product.sku || null,
+          stock_alert_threshold: product.stockAlertThreshold || 0,
         })
         .select()
         .single();
