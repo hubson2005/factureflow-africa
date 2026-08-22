@@ -13,6 +13,7 @@ import Products from "./pages/Products";
 import Stock from "./pages/Stock";
 import Purchases from "./pages/Purchases";
 import Treasury from "./pages/Treasury";
+import HR from "./pages/HR";
 import Quotes from "./pages/Quotes";
 import Invoices from "./pages/Invoices";
 import RecurringInvoices from "./pages/RecurringInvoices";
@@ -91,6 +92,7 @@ export default function App() {
           <Route path="/stock" element={<Stock />} />
           <Route path="/purchases" element={<Purchases />} />
           <Route path="/accounts" element={<Treasury />} />
+          <Route path="/hr" element={<HR />} />
           <Route path="/quotes" element={<Quotes />} />
           <Route path="/invoices" element={<Invoices />} />
           <Route path="/recurring-invoices" element={<RecurringInvoices />} />
