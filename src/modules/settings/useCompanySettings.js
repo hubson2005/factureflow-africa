@@ -45,7 +45,11 @@ export function useUpdateCompanyCompliance() {
   });
 }
 
-// Mise a jour de la configuration FNE (cle API, mode, URL prod)
+// Mise a jour du mode/URL FNE (colonnes normales, non sensibles). La cle API
+// elle-meme ne transite JAMAIS par cette mutation ni par une simple update
+// de table -- voir useSetFneApiKey/useClearFneApiKey ci-dessous, qui passent
+// par des RPC dediees (set_fne_api_key/clear_fne_api_key) stockant la cle
+// chiffree dans Supabase Vault, jamais en clair, jamais renvoyee au client.
 export function useUpdateFneSettings() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -54,10 +58,38 @@ export function useUpdateFneSettings() {
         .from("companies")
         .update({
           fne_mode: fields.fneMode,
-          fne_api_key: fields.fneApiKey || null,
           fne_api_url: fields.fneApiUrl || null,
         })
         .eq("id", companyId);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["company"] }),
+  });
+}
+
+// Definit/remplace la cle API FNE. Ne renvoie et ne recoit jamais la cle en
+// clair depuis/vers une colonne de table -- passe par la RPC set_fne_api_key
+// qui la stocke chiffree dans Supabase Vault (reserve aux admins).
+export function useSetFneApiKey() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ companyId, apiKey }) => {
+      const { error } = await supabase.rpc("set_fne_api_key", {
+        p_company_id: companyId,
+        p_api_key: apiKey,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["company"] }),
+  });
+}
+
+// Retire la cle API FNE configuree (repasse l'entreprise en mode simulation).
+export function useClearFneApiKey() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (companyId) => {
+      const { error } = await supabase.rpc("clear_fne_api_key", { p_company_id: companyId });
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["company"] }),

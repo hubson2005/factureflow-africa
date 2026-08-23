@@ -7,7 +7,7 @@ import { useCompany } from "../hooks/useCompany";
 import { useUpdateCompanySignature } from "../hooks/useUpdateCompanySignature";
 import { SignaturePad } from "../components/shared/SignaturePad";
 import { PLANS, useSubscription, useChangePlan } from "../modules/subscription/useSubscription";
-import { useCountryConfigs, useUpdateCompanyCompliance, useUpdateFneSettings } from "../modules/settings/useCompanySettings";
+import { useCountryConfigs, useUpdateCompanyCompliance, useUpdateFneSettings, useSetFneApiKey, useClearFneApiKey } from "../modules/settings/useCompanySettings";
 import IntegrationsSection from "../modules/settings/IntegrationsSection";
 
 
@@ -213,6 +213,8 @@ function ComplianceSection({ company }: any) {
   const { data: countryConfigs } = useCountryConfigs();
   const updateCompliance = useUpdateCompanyCompliance();
   const updateFne = useUpdateFneSettings();
+  const setFneKey = useSetFneApiKey();
+  const clearFneKey = useClearFneApiKey();
 
   const companies = company?.companies || {};
   const [countryCode, setCountryCode] = useState(companies.country_code || "");
@@ -222,11 +224,15 @@ function ComplianceSection({ company }: any) {
   const [capitalSocial, setCapitalSocial] = useState(companies.capital_social ?? "");
 
   const [fneMode, setFneMode] = useState(companies.fne_mode || "test");
-  const [fneApiKey, setFneApiKey] = useState(companies.fne_api_key || "");
+  // Ne contient jamais la vraie cle : le serveur ne la renvoie plus jamais en
+  // clair (stockee chiffree dans Vault). Ce champ ne represente que la
+  // NOUVELLE valeur eventuellement saisie par l'utilisateur pour la remplacer.
+  const [fneApiKey, setFneApiKey] = useState("");
   const [fneApiUrl, setFneApiUrl] = useState(companies.fne_api_url || "");
   const [showKey, setShowKey] = useState(false);
   const [savedCompliance, setSavedCompliance] = useState(false);
   const [savedFne, setSavedFne] = useState(false);
+  const hasFneKeyConfigured = !!companies.fne_api_key_secret_id;
 
   // Resynchronise si les donnees serveur changent (apres invalidation de la query)
   useEffect(() => {
@@ -236,11 +242,10 @@ function ComplianceSection({ company }: any) {
     setRccmNumber(companies.rccm_number || "");
     setCapitalSocial(companies.capital_social ?? "");
     setFneMode(companies.fne_mode || "test");
-    setFneApiKey(companies.fne_api_key || "");
     setFneApiUrl(companies.fne_api_url || "");
   }, [companies.country_code, companies.tax_regime, companies.fiscal_number,
       companies.rccm_number, companies.capital_social, companies.fne_mode,
-      companies.fne_api_key, companies.fne_api_url]);
+      companies.fne_api_url]);
 
   const configs = (countryConfigs && countryConfigs.length > 0) ? countryConfigs : COUNTRY_FALLBACK;
   const selectedConfig = configs.find((c: any) => c.country_code === countryCode);
@@ -259,10 +264,38 @@ function ComplianceSection({ company }: any) {
 
   function handleSaveFne() {
     updateFne.mutate(
-      { companyId: company.company_id, fneMode, fneApiKey, fneApiUrl },
-      { onSuccess: () => { setSavedFne(true); setTimeout(() => setSavedFne(false), 2000); },
-        onError: (err: any) => alert("Erreur : " + err.message) }
+      { companyId: company.company_id, fneMode, fneApiUrl },
+      {
+        onSuccess: () => {
+          // Si l'utilisateur a saisi une nouvelle cle, l'enregistrer separement
+          // via la RPC dediee (chiffree dans Vault, jamais en clair).
+          if (fneApiKey.trim() !== "") {
+            setFneKey.mutate(
+              { companyId: company.company_id, apiKey: fneApiKey.trim() },
+              {
+                onSuccess: () => {
+                  setFneApiKey("");
+                  setSavedFne(true);
+                  setTimeout(() => setSavedFne(false), 2000);
+                },
+                onError: (err: any) => alert("Erreur (cle) : " + err.message),
+              }
+            );
+          } else {
+            setSavedFne(true);
+            setTimeout(() => setSavedFne(false), 2000);
+          }
+        },
+        onError: (err: any) => alert("Erreur : " + err.message),
+      }
     );
+  }
+
+  function handleClearFneKey() {
+    if (!confirm("Retirer la cle API FNE ? L'entreprise repassera en mode simulation.")) return;
+    clearFneKey.mutate(company.company_id, {
+      onError: (err: any) => alert("Erreur : " + err.message),
+    });
   }
 
   return (
@@ -347,10 +380,21 @@ function ComplianceSection({ company }: any) {
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <label style={{ fontSize: 12.5, fontWeight: 600, color: colors.gray[600] }}>Clé API FNE</label>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <label style={{ fontSize: 12.5, fontWeight: 600, color: colors.gray[600] }}>Clé API FNE</label>
+              <span style={{
+                display: "inline-flex", alignItems: "center", gap: 4, padding: "2px 8px",
+                borderRadius: radius.full, fontSize: 11, fontWeight: 700,
+                background: hasFneKeyConfigured ? palette.green[50] : colors.gray[100],
+                color: hasFneKeyConfigured ? palette.green.text : colors.gray[600],
+              }}>
+                {hasFneKeyConfigured ? "Configurée" : "Non configurée"}
+              </span>
+            </div>
             <div style={{ display: "flex", gap: 8 }}>
               <input type={showKey ? "text" : "password"} value={fneApiKey} onChange={(e) => setFneApiKey(e.target.value)}
-                placeholder="Obtenue après validation par la DGI" style={{ flex: 1, minWidth: 0, padding: "11px 14px", borderRadius: radius.md,
+                placeholder={hasFneKeyConfigured ? "Laisser vide pour ne pas changer la clé actuelle" : "Obtenue après validation par la DGI"}
+                style={{ flex: 1, minWidth: 0, padding: "11px 14px", borderRadius: radius.md,
                   border: "1px solid " + colors.gray[200], fontSize: 14, fontFamily: font, color: colors.gray[900],
                   outline: "none", background: colors.white }} />
               <button onClick={() => setShowKey(!showKey)} style={{ padding: "0 12px", borderRadius: radius.md,
@@ -358,6 +402,18 @@ function ComplianceSection({ company }: any) {
                 {showKey ? <EyeOff size={15} color={colors.gray[500]} /> : <Eye size={15} color={colors.gray[500]} />}
               </button>
             </div>
+            <p style={{ margin: 0, fontSize: 11.5, color: colors.gray[500] }}>
+              Pour votre sécurité, la clé enregistrée n'est plus jamais réaffichée
+              ici une fois configurée — seule l'indication "Configurée" le confirme.
+            </p>
+            {hasFneKeyConfigured && (
+              <button onClick={handleClearFneKey} disabled={clearFneKey.isPending} style={{
+                alignSelf: "flex-start", padding: "6px 12px", borderRadius: radius.md,
+                border: "1px solid " + palette.danger[100], background: palette.danger[50],
+                color: palette.danger.solid, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: font }}>
+                {clearFneKey.isPending ? "Retrait..." : "Retirer la clé"}
+              </button>
+            )}
           </div>
 
           {fneMode === "production" && (

@@ -16,7 +16,7 @@ export function useCompany() {
           "id, name, phone, address, currency, tax_rate, invoice_format, quote_format, " +
           "subscription_plan, signature_url, " +
           "country_code, tax_regime, fiscal_number, rccm_number, capital_social, " +
-          "fne_mode, fne_api_key, fne_api_url, fne_balance_sticker" +
+          "fne_mode, fne_api_key_secret_id, fne_api_url, fne_balance_sticker" +
           ")"
         )
         .eq("user_id", user.id)
