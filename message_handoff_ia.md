@@ -448,3 +448,81 @@ bug par erreur, sans meme etre malveillant.
 
 **Le passage de securite est termine. Les 4 modules ERP sont prets
 pour le merge vers `main`, sous reserve de la validation de Hubert.**
+
+## Mise a niveau des points en attente (22/08/2026, sur demande de Hubert)
+
+Trois des points signales comme "non prioritaire"/"a nettoyer plus tard"
+traites maintenant. Deux autres (plan comptable SYSCOHADA, placeholders
+NCC/RCCM) restent hors de portee -- necessitent respectivement une
+validation comptable OHADA et les vraies valeurs legales des entreprises,
+que ni moi ni l'autre IA ne pouvons deviner.
+
+### 1. Triggers dupliques sur `payments` -- NETTOYE
+
+Retire `audit_payment_recorded` (garde `audit_payment_insert`, convention
+MAJUSCULES coherente avec le reste du schema) et `trg_payments_webhook`
+(garde `webhook_payment_received` -- l'autre utilisait un nom d'evenement
+`'paiement_recu'` absent de la liste documentee dans IntegrationsSection.tsx
+et envoyait la ligne brute complete au lieu d'un payload propre). Teste :
+un seul log d'audit desormais par paiement enregistre.
+
+### 2. Chiffrement de `fne_api_key` -- FAIT (migration + Edge Function + front)
+
+Migre vers Supabase Vault (extension deja disponible sur ce projet).
+`companies.fne_api_key` (colonne en clair) **supprimee**. Remplacee par
+`fne_api_key_secret_id uuid references vault.secrets(id)`.
+
+Nouvelles fonctions : `set_fne_api_key(company_id, api_key)` (admin
+uniquement, cree/met a jour le secret Vault), `clear_fne_api_key(company_id)`
+(admin uniquement), `get_decrypted_fne_api_key(company_id)` (EXECUTE
+reserve a service_role/postgres -- jamais anon/authenticated, sinon on
+recree la fuite qu'on corrige). Le schema `vault` n'etant pas expose via
+PostgREST, l'Edge Function passe par cette derniere fonction via `.rpc()`
+plutot qu'un acces direct a `vault.decrypted_secrets`.
+
+Edge Function `fne-certify-invoice` mise a jour et redeployee (v4).
+
+**BUG CRITIQUE trouve et corrige en cours de route** : `useCompany.js`
+(hook central utilise dans toute l'app) selectionnait encore
+`companies.fne_api_key` -- la colonne venait d'etre supprimee par la
+migration. Sans ce correctif immediat, le prochain chargement de l'app
+aurait casse partout (`useCompany` est appele quasiment sur chaque page).
+Corrige avant meme de committer, donc jamais deploye en l'etat casse.
+
+Frontend (`Settings.tsx`, `useCompanySettings.js`) : la cle ne se
+pre-remplit plus jamais avec la vraie valeur (le serveur ne l'envoie
+plus). Badge "Configuree"/"Non configuree", bouton "Retirer la cle".
+
+Teste de bout en bout : cycle definir/dechiffrer/retirer valide,
+verification non-admin refusee, logique exacte de l'Edge Function
+(via `get_decrypted_fne_api_key`) validee dans les deux cas (avec/sans
+cle configuree). Aucune vraie cle FNE n'existait en base au moment de
+la migration (verifie avant de commencer) -- rien a migrer, juste la
+structure.
+
+### 3. `accept_invitation()` sans verification email -- CORRIGE
+
+Ajoute une comparaison insensible a la casse entre l'email de
+l'invitation et celui de l'utilisateur connecte. Avant : n'importe qui
+en possession du token (lien forwarde par erreur, etc.) pouvait accepter
+l'invitation en son propre nom, quel que soit son email. Teste : email
+different refuse avec message clair, email identique (casse differente
+y compris) accepte normalement. Utilisateur de test cree directement
+dans `auth.users` pour le test (seule facon de tester un utilisateur
+"neuf" sans entreprise), supprime immediatement apres.
+
+### Points restants, hors de portee pour une IA
+
+- **Plan comptable SYSCOHADA complet** : necessite la validation d'un
+  comptable OHADA avant de coder quoi que ce soit -- ne pas deviner une
+  classification comptable.
+- **Placeholders NCC/RCCM** (`A_COMPLETER_NCC`/`A_COMPLETER_RCCM` pour
+  KUDU CASH et SOCIALAPP) : necessitent les vraies valeurs legales des
+  entreprises, que Hubert seul peut fournir.
+
+### Note mineure, non traitee (hors scope de cette tache)
+
+`useUpdateCompanyCompliance()` dans `useCompanySettings.js` contient des
+`console.log` de debug ("DEBUG mutationFn START/AFTER AWAIT/CAUGHT
+EXCEPTION") oublies dans le code de production. Sans risque de securite,
+juste du bruit dans la console -- a nettoyer a l'occasion.
