@@ -526,3 +526,63 @@ dans `auth.users` pour le test (seule facon de tester un utilisateur
 `console.log` de debug ("DEBUG mutationFn START/AFTER AWAIT/CAUGHT
 EXCEPTION") oublies dans le code de production. Sans risque de securite,
 juste du bruit dans la console -- a nettoyer a l'occasion.
+
+## Audit complet de l'existant (23/08/2026, sur demande de Hubert)
+
+Etat des lieux systematique de toutes les fonctionnalites avant ajout de
+nouvelles. Verdict global : l'existant est sain, rien de casse ni de
+factice trouve dans les fonctionnalites elles-memes.
+
+### REGRESSION DE SECURITE trouvee et corrigee (migration reharden_webhook_audit_execute_grants)
+
+`dispatch_webhook()` et `log_audit_event()` avaient de nouveau EXECUTE
+accorde a `authenticated` -- deja corrige DEUX fois precedemment
+(20260805185934 et 20260820134705). Cause racine identifiee : migration
+`20260808152340 grant_execute_dispatch_webhook_to_authenticated`, un choix
+DELIBERE d'une session anterieure (entre les deux revoke), probablement
+pour corriger un faux-positif ("le webhook ne se declenche pas") sans
+realiser que dispatch_webhook n'est appele QUE par des triggers internes
+(qui n'ont pas besoin de ce grant). Reconfirme avant de corriger :
+toujours aucun appel frontend direct (recherche exhaustive dans src/).
+
+**IMPORTANT pour la suite : si un vrai besoin frontend apparait un jour
+(bouton "Tester le webhook" par exemple), la bonne solution est une
+fonction RPC DEDIEE avec sa propre verification user_role_in_company
+(comme create_credit_note), PAS un grant direct sur dispatch_webhook/
+log_audit_event. Merci de ne pas re-re-grant ces deux fonctions une
+3e fois sans lire cette note.**
+
+Decouverte au meme audit : `trg_webhook_client()` et `trg_webhook_invoice()`
+(fonctions de trigger jamais vues dans les audits precedents) avaient
+aussi EXECUTE accorde a anon/authenticated/PUBLIC. Non exploitable
+(Postgres rejette l'appel direct de fonctions RETURNS trigger), mais
+retire par principe de moindre privilege.
+
+### Dette mineure identifiee, non traitee (sans impact utilisateur)
+
+- `src/modules/dashboard/dashboard.data.ts` : exports morts
+  (`quickActions`, `assistantInsights`, `todayTasks`, `evolutionData`,
+  `kpis`, `recentInvoices`, `topClients`, `recentPayments`) jamais
+  importes par `Dashboard.tsx` (qui utilise `useDashboardData.js`,
+  100% donnees reelles). Le commentaire en tete de fichier ("Donnees de
+  demonstration -- a remplacer") est obsolete et trompeur.
+- `src/modules/dashboard/hooks/useSidebar.ts` : fichier vide (0 ligne),
+  jamais importe nulle part.
+- Avis de performance Supabase (non urgents, non fonctionnels) :
+  plusieurs policies RLS re-evaluent `auth.uid()`/`current_setting()`
+  par ligne au lieu de `(select auth.uid())` (notifications,
+  platform_admins, recurring_transactions, invoice_templates,
+  companies) ; plusieurs FK non indexees ; quelques index jamais
+  utilises ; `idx_audit_log_company` et `idx_audit_log_company_date`
+  sont des doublons exacts sur `audit_log`.
+
+### Confirme sain (pas de faux positif malgre les apparences)
+
+- Deux fichiers `supabase.js`/`lib/supabaseClient.js` : PAS une
+  duplication de client -- `lib/supabaseClient.js` reexporte proprement
+  le client unique de `src/supabase.js` (qui contient un contournement
+  documente d'un bug connu de @supabase/supabase-js sur navigator.locks).
+  Ne pas toucher, deja correctement architecture.
+- `Assistant.tsx` : appelle bien l'Edge Function `assistant-ai` reelle,
+  via `fetch()` direct plutot que `.functions.invoke()` -- style
+  different, meme resultat, pas un bug.
