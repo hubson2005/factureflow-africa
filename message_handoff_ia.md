@@ -586,3 +586,59 @@ retire par principe de moindre privilege.
 - `Assistant.tsx` : appelle bien l'Edge Function `assistant-ai` reelle,
   via `fetch()` direct plutot que `.functions.invoke()` -- style
   different, meme resultat, pas un bug.
+
+## Nettoyage de la dette mineure (23/08/2026, sur demande de Hubert)
+
+### Fait
+
+1. **Code mort frontend retire** (commit e95e00c) : dashboard.data.ts
+   (8 exports de donnees factices jamais utilisees + commentaire trompeur),
+   useSidebar.ts (fichier vide, jamais importe), 9 imports d'icones devenus
+   inutiles. Build de production verifie.
+
+2. **Index duplique sur audit_log retire** (migration
+   drop_duplicate_audit_log_index) : idx_audit_log_company et
+   idx_audit_log_company_date etaient des doublons exacts, garde le second.
+
+3. **6 policies RLS optimisees** (migration optimize_rls_auth_uid_calls) :
+   auth.uid() remplace par (select auth.uid()) sur notifications (x2),
+   platform_admins, recurring_transactions, invoice_templates, companies
+   -- evite la reevaluation ligne par ligne. Comportement identique,
+   revalide par test d'intrusion reel sur invoice_templates.
+
+4. **7 policies SELECT redondantes retirees** (migration
+   dedupe_erp_select_policies) : sur accounts/employees/payslips/
+   purchase_items/purchases/suppliers/warehouses, la policy SELECT dediee
+   faisait doublon exact avec la policy FOR ALL (meme condition). Retire
+   les 7 SELECT, garde les ALL. Revalide par test d'intrusion reel sur
+   warehouses.
+
+### Deliberement PAS fait, avec raison
+
+- **Index "jamais utilises" (idx_clients_company, idx_products_company,
+  idx_quotes_company, idx_invoices_company, idx_payslips_status,
+  idx_client_scores_company, idx_reminders_company,
+  idx_reminders_status_scheduled, idx_audit_log_entity,
+  idx_invoices_original, idx_stock_movements_reference,
+  idx_audit_log_company_date)** : le jeu de donnees reel est quasi vide
+  (2 entreprises, tres peu de vraies transactions) -- "jamais utilise"
+  reflete l'absence de volume, pas une inutilite reelle. Ce sont
+  precisement les index dont on aura besoin des que l'usage reel
+  demarre (filtrage par company_id = coeur du modele multi-tenant). Les
+  retirer maintenant serait une optimisation prematuree et contre-
+  productive. A revisiter une fois qu'il y a un vrai volume de donnees
+  en production, avec les vraies stats d'usage a ce moment-la.
+- **~20 FK non indexees** (created_by sur plusieurs tables, product_id
+  sur les lignes de facture/devis/achat/facture recurrente, etc.) :
+  meme raisonnement -- ajouter des index sans preuve d'une requete lente
+  reelle est premature. Risque plus faible que de retirer (l'ajout ne
+  casse jamais rien, coute juste un peu d'ecriture/stockage), donc moins
+  urgent a documenter comme "a ne pas faire", simplement pas fait
+  faute de justification actuelle.
+- **Multiple permissive policies restantes** (companies/invoices/
+  payments/client_scores/api_keys/webhook_endpoints avec chevauchement
+  platform_admin_*) : pattern different de celui des 7 tables ERP
+  (interaction avec les policies platform_admin_*, que je n'ai pas
+  ecrites et pas auditees en profondeur). Plus risque a fusionner sans
+  comprendre l'intention originale du design platform_admin. Laisse tel
+  quel, signale pour un audit dedie si Hubert le souhaite un jour.
