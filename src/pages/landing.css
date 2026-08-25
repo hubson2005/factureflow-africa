@@ -1,0 +1,28 @@
+/*
+  Active Tailwind CSS (v4, syntaxe @import — pas @tailwind base/components/
+  utilities qui est l'ancienne syntaxe v3) UNIQUEMENT pour la landing page.
+
+  Le reste de l'application FactureFlow utilise un systeme de design a base
+  de styles inline (theme/tokens.js) et ne consomme jamais Tailwind. Le
+  plugin @tailwindcss/vite est bien present dans vite.config.ts, mais aucun
+  fichier CSS ne faisait jusqu'ici @import "tailwindcss" -- Tailwind etait
+  donc installe mais dormant (aucune classe generee nulle part).
+
+  Ce fichier est importe directement dans LandingPage.tsx (pas dans le CSS
+  global) pour eviter que la couche "preflight" de Tailwind (reset CSS
+  agressif : marges, tailles de police, etc.) ne vienne perturber visuellement
+  le reste de l'app authentifiee, qui n'a jamais ete concue pour coexister
+  avec ce reset.
+
+  ATTENTION : meme importe uniquement depuis LandingPage.tsx, ce CSS finit
+  dans le bundle GLOBAL (LandingPage est importee statiquement dans App.tsx,
+  pas en lazy-loading -- Vite fusionne alors tout le CSS statiquement
+  atteignable en un seul fichier charge sur toutes les pages). La veritable
+  protection ici n'est donc PAS l'emplacement de cet import, mais l'exclusion
+  explicite de la couche preflight ci-dessous (approche recommandee par la
+  doc officielle Tailwind pour integrer Tailwind dans une app existante avec
+  son propre systeme de style) : on importe le theme + les utilitaires, sans
+  le reset.
+*/
+@import "tailwindcss/theme.css";
+@import "tailwindcss/utilities.css";
