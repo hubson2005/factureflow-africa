@@ -9,7 +9,7 @@ import "./landing.css";
 
 /* ===========================================================
    Charte graphique FactureFlow Africa — l'orange est LA couleur.
-   #F97316 (marque, CTA, dégradés) · #C2410C (hover / profondeur)
+   var(--color-primary-600) (marque, CTA, dégradés) · var(--color-primary-700) (hover / profondeur)
    Fond clair, encre #0F172A, police unique : Inter
 =========================================================== */
 
@@ -87,9 +87,9 @@ function Wave({ fill = "#FFFFFF", flip = false }: WaveProps) {
 interface HexaProps { icon: React.ComponentType<{ size?: number; className?: string; strokeWidth?: number }>; size?: number; tone?: string; }
 function Hexa({ icon: Icon, size = 56, tone = "1" }: HexaProps) {
   const tones: Record<string, string> = {
-    1: "linear-gradient(145deg,#FDBA74,#F97316)",
-    2: "linear-gradient(145deg,#FB923C,#C2410C)",
-    3: "linear-gradient(145deg,#FED7AA,#F97316)",
+    1: "linear-gradient(145deg,#FDBA74,var(--color-primary-600))",
+    2: "linear-gradient(145deg,#FB923C,var(--color-primary-700))",
+    3: "linear-gradient(145deg,#FED7AA,var(--color-primary-600))",
   };
   return (
     <div
@@ -165,7 +165,7 @@ function PaymentsMock() {
               <tr key={r.name} className="border-t border-gray-100">
                 <td className="py-2.5 text-gray-800 font-medium">{r.name}</td>
                 <td className="py-2.5 text-gray-500">{r.mode}</td>
-                <td className="py-2.5"><span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${r.status === "Payé" ? "bg-green-100 text-green-700" : "bg-orange-100 text-[#C2410C]"}`}>{r.status}</span></td>
+                <td className="py-2.5"><span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${r.status === "Payé" ? "bg-green-100 text-green-700" : "bg-orange-100 text-[var(--color-primary-700)]"}`}>{r.status}</span></td>
                 <td className="py-2.5 text-right font-mono text-gray-900">{r.amount}</td>
               </tr>
             ))}
@@ -188,12 +188,12 @@ function ClientsMock() {
         {clients.map((c) => (
           <div key={c.n} className="flex items-center justify-between border border-gray-100 rounded-lg px-3 py-2.5">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full text-white text-[11px] font-bold flex items-center justify-center" style={{ background: "linear-gradient(145deg,#FB923C,#C2410C)" }}>{c.i}</div>
+              <div className="w-8 h-8 rounded-full text-white text-[11px] font-bold flex items-center justify-center" style={{ background: "linear-gradient(145deg,#FB923C,var(--color-primary-700))" }}>{c.i}</div>
               <span className="text-[13px] font-medium text-gray-800">{c.n}</span>
             </div>
             <div className="text-right">
               <p className="text-[12px] font-mono text-gray-900">{c.solde}</p>
-              <p className={`text-[10px] font-semibold ${c.tag === "À jour" ? "text-green-600" : "text-[#C2410C]"}`}>{c.tag}</p>
+              <p className={`text-[10px] font-semibold ${c.tag === "À jour" ? "text-green-600" : "text-[var(--color-primary-700)]"}`}>{c.tag}</p>
             </div>
           </div>
         ))}
@@ -210,10 +210,10 @@ function DepensesMock() {
         {cats.map((c) => (
           <div key={c.n}>
             <div className="flex justify-between text-[12px] text-gray-600 mb-1"><span>{c.n}</span><span className="font-mono text-gray-900">{c.m}</span></div>
-            <div className="h-2 rounded-full bg-gray-100 overflow-hidden"><div className="h-full rounded-full" style={{ width: `${c.v}%`, background: "linear-gradient(90deg,#FDBA74,#F97316)" }} /></div>
+            <div className="h-2 rounded-full bg-gray-100 overflow-hidden"><div className="h-full rounded-full" style={{ width: `${c.v}%`, background: "linear-gradient(90deg,#FDBA74,var(--color-primary-600))" }} /></div>
           </div>
         ))}
-        <div className="pt-2 mt-2 border-t border-gray-100 flex justify-between text-[13px] font-semibold"><span className="text-gray-700">Marge nette estimée</span><span className="text-[#C2410C]">62%</span></div>
+        <div className="pt-2 mt-2 border-t border-gray-100 flex justify-between text-[13px] font-semibold"><span className="text-gray-700">Marge nette estimée</span><span className="text-[var(--color-primary-700)]">62%</span></div>
       </div>
     </BrowserFrame>
   );
@@ -225,7 +225,7 @@ function StockMock() {
     { n: "Cartouches d'encre", q: 0, tag: "Rupture" },
     { n: "Housses ordinateur", q: 42, tag: "En stock" },
   ];
-  const tagColor: Record<string, string> = { "Stock faible": "bg-orange-100 text-[#C2410C]", "Rupture": "bg-red-100 text-red-600", "En stock": "bg-green-100 text-green-700" };
+  const tagColor: Record<string, string> = { "Stock faible": "bg-orange-100 text-[var(--color-primary-700)]", "Rupture": "bg-red-100 text-red-600", "En stock": "bg-green-100 text-green-700" };
   return (
     <BrowserFrame>
       <div className="p-5 bg-white space-y-2.5">
@@ -249,7 +249,7 @@ function AchatsMock() {
     { f: "Distri-Bureau CI", statut: "En cours", montant: "58 000 F" },
     { f: "TechImport SARL", statut: "En attente", montant: "410 000 F" },
   ];
-  const tagColor: Record<string, string> = { "Reçue": "bg-green-100 text-green-700", "En cours": "bg-blue-100 text-blue-600", "En attente": "bg-orange-100 text-[#C2410C]" };
+  const tagColor: Record<string, string> = { "Reçue": "bg-green-100 text-green-700", "En cours": "bg-blue-100 text-blue-600", "En attente": "bg-orange-100 text-[var(--color-primary-700)]" };
   return (
     <BrowserFrame>
       <div className="p-5 bg-white space-y-2.5">
@@ -270,7 +270,7 @@ function AchatsMock() {
 function TresorerieMock() {
   const flux = [
     { m: "Encaissements", v: 82, c: "#16A34A" },
-    { m: "Décaissements", v: 48, c: "#F97316" },
+    { m: "Décaissements", v: 48, c: "var(--color-primary-600)" },
   ];
   return (
     <BrowserFrame>
@@ -297,13 +297,13 @@ function RecouvrementMock() {
   return (
     <BrowserFrame>
       <div className="p-5 bg-white space-y-3">
-        <div className="flex items-center gap-2 text-[11px] font-semibold text-[#C2410C] uppercase tracking-wide"><Sparkles size={13} /> Suggestions IA</div>
+        <div className="flex items-center gap-2 text-[11px] font-semibold text-[var(--color-primary-700)] uppercase tracking-wide"><Sparkles size={13} /> Suggestions IA</div>
         {[
           { c: "Établissements Koné", p: "82%", msg: "Relancer aujourd'hui par SMS" },
           { c: "SARL Diallo & Fils", p: "54%", msg: "Proposer un échéancier" },
         ].map((r) => (
           <div key={r.c} className="border border-orange-100 bg-orange-50/60 rounded-lg px-3 py-2.5">
-            <div className="flex justify-between text-[13px] font-medium text-gray-800"><span>{r.c}</span><span className="text-[#C2410C] font-mono text-[12px]">{r.p}</span></div>
+            <div className="flex justify-between text-[13px] font-medium text-gray-800"><span>{r.c}</span><span className="text-[var(--color-primary-700)] font-mono text-[12px]">{r.p}</span></div>
             <p className="text-[12px] text-gray-500 mt-1">{r.msg}</p>
           </div>
         ))}
@@ -324,7 +324,7 @@ function RHMock() {
         {team.map((t) => (
           <div key={t.n} className="flex items-center justify-between border border-gray-100 rounded-lg px-3 py-2.5">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full text-white text-[11px] font-bold flex items-center justify-center" style={{ background: "linear-gradient(145deg,#FDBA74,#C2410C)" }}>{t.i}</div>
+              <div className="w-8 h-8 rounded-full text-white text-[11px] font-bold flex items-center justify-center" style={{ background: "linear-gradient(145deg,#FDBA74,var(--color-primary-700))" }}>{t.i}</div>
               <div><p className="text-[13px] font-medium text-gray-800">{t.n}</p><p className="text-[11px] text-gray-400">{t.role}</p></div>
             </div>
             <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${t.statut === "Actif" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>{t.statut}</span>
@@ -344,17 +344,17 @@ function DashboardMock({ tilt = false }: { tilt?: boolean }) {
         <div className="flex">
           <div className="w-14 bg-gray-900 py-4 flex flex-col items-center gap-4">
             {[BarChart3, FileText, Users, Wallet, Bell].map((Icon, i) => (
-              <div key={i} className="w-8 h-8 rounded-lg flex items-center justify-center" style={i === 0 ? { background: "linear-gradient(145deg,#FDBA74,#F97316)" } : { background: "rgba(255,255,255,0.1)" }}><Icon size={14} className="text-white" /></div>
+              <div key={i} className="w-8 h-8 rounded-lg flex items-center justify-center" style={i === 0 ? { background: "linear-gradient(145deg,#FDBA74,var(--color-primary-600))" } : { background: "rgba(255,255,255,0.1)" }}><Icon size={14} className="text-white" /></div>
             ))}
           </div>
           <div className="flex-1 p-5 bg-[#F9FAFB]">
             <div className="grid grid-cols-3 gap-3">
-              {[{ l: "Encaissé ce mois", v: "1 240 000 F", c: "text-gray-900" }, { l: "En attente", v: "380 000 F", c: "text-[#C2410C]" }, { l: "Factures FNE", v: "42", c: "text-green-600" }].map((k) => (
+              {[{ l: "Encaissé ce mois", v: "1 240 000 F", c: "text-gray-900" }, { l: "En attente", v: "380 000 F", c: "text-[var(--color-primary-700)]" }, { l: "Factures FNE", v: "42", c: "text-green-600" }].map((k) => (
                 <div key={k.l} className="bg-white rounded-lg border border-gray-200 p-3"><p className="text-[10px] text-gray-400">{k.l}</p><p className={`text-sm font-bold mt-1 ${k.c}`}>{k.v}</p></div>
               ))}
             </div>
             <div className="bg-white rounded-lg border border-gray-200 mt-3 p-4 flex items-end gap-2 h-24">
-              {bars.map((h, i) => <div key={i} className="flex-1 rounded-t-sm transition-all duration-700 ease-out" style={{ height: `${h}%`, background: "linear-gradient(180deg,#FDBA74,#F97316)" }} />)}
+              {bars.map((h, i) => <div key={i} className="flex-1 rounded-t-sm transition-all duration-700 ease-out" style={{ height: `${h}%`, background: "linear-gradient(180deg,#FDBA74,var(--color-primary-600))" }} />)}
             </div>
           </div>
         </div>
@@ -372,12 +372,12 @@ function AutomationMock() {
           <span className="px-2 py-1 rounded bg-gray-50 text-gray-400">après</span>
           <span className="px-3 py-1.5 rounded-lg bg-gray-100 text-gray-700 font-medium">7 jours</span>
           <ArrowRight size={13} className="text-gray-400" />
-          <span className="px-3 py-1.5 rounded-lg bg-[#F97316]/10 text-[#C2410C] font-semibold flex items-center gap-1"><Mail size={12} /> Email de relance</span>
+          <span className="px-3 py-1.5 rounded-lg bg-[var(--color-primary-600)]/10 text-[var(--color-primary-700)] font-semibold flex items-center gap-1"><Mail size={12} /> Email de relance</span>
         </div>
         <div className="border-t border-gray-100 pt-4">
           <p className="text-[10px] text-gray-400 mb-2 uppercase tracking-widest">Assistant IA</p>
           <div className="bg-gray-50 rounded-lg px-3 py-2 text-[12px] text-gray-600 mb-2">« Quel client me doit le plus ? »</div>
-          <div className="bg-[#F97316]/10 rounded-lg px-3 py-2 text-[12px] text-[#C2410C] font-medium">Établissements Koné — 480 000 F, échue depuis 12 jours.</div>
+          <div className="bg-[var(--color-primary-600)]/10 rounded-lg px-3 py-2 text-[12px] text-[var(--color-primary-700)] font-medium">Établissements Koné — 480 000 F, échue depuis 12 jours.</div>
         </div>
       </div>
     </BrowserFrame>
@@ -488,25 +488,25 @@ export default function LandingPage() {
 
       {/* NAV */}
       <header className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${scrolled ? "bg-white/90 backdrop-blur-md border-b border-gray-200 shadow-sm" : "bg-transparent"}`}>
-        <div className="hidden sm:flex items-center justify-center gap-2 text-[12px] font-semibold text-white py-1.5" style={{ background: "linear-gradient(90deg,#EA580C,#F97316,#EA580C)" }}>
+        <div className="hidden sm:flex items-center justify-center gap-2 text-[12px] font-semibold text-white py-1.5" style={{ background: "linear-gradient(90deg,#EA580C,var(--color-primary-600),#EA580C)" }}>
           <Sparkles size={12} /> Disponible dans les 8 pays de la zone UEMOA — même plateforme, même FCFA
         </div>
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center shadow-md shadow-orange-500/30" style={{ background: "linear-gradient(145deg,#FDBA74,#F97316)" }}><span className="text-white text-xs font-extrabold">FF</span></div>
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center shadow-md shadow-orange-500/30" style={{ background: "linear-gradient(145deg,#FDBA74,var(--color-primary-600))" }}><span className="text-white text-xs font-extrabold">FF</span></div>
             <span className="text-lg font-bold tracking-tight">FactureFlow</span>
           </div>
           <nav className="hidden md:flex items-center gap-8">{navLinks.map((l) => <a key={l.label} href={l.href} className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">{l.label}</a>)}</nav>
           <div className="hidden md:flex items-center gap-3">
             <a href="#" className="text-sm font-semibold text-gray-600 hover:text-gray-900">Connexion</a>
-            <a href="#" className="text-sm font-semibold text-white px-4 py-2 rounded-lg transition-transform hover:scale-105" style={{ background: "linear-gradient(135deg,#FB923C,#F97316)" }}>Essai gratuit</a>
+            <a href="#" className="text-sm font-semibold text-white px-4 py-2 rounded-lg transition-transform hover:scale-105" style={{ background: "linear-gradient(135deg,#FB923C,var(--color-primary-600))" }}>Essai gratuit</a>
           </div>
           <button className="md:hidden" onClick={() => setMenuOpen((o) => !o)} aria-label="Menu">{menuOpen ? <X size={22} /> : <Menu size={22} />}</button>
         </div>
         {menuOpen && (
           <div className="md:hidden bg-white border-t border-gray-200 px-6 py-4 space-y-3">
             {navLinks.map((l) => <a key={l.label} href={l.href} className="block text-sm text-gray-700">{l.label}</a>)}
-            <a href="#" className="block text-sm font-semibold text-white bg-[#F97316] px-4 py-2 rounded-lg text-center">Essai gratuit</a>
+            <a href="#" className="block text-sm font-semibold text-white bg-[var(--color-primary-600)] px-4 py-2 rounded-lg text-center">Essai gratuit</a>
           </div>
         )}
       </header>
@@ -514,7 +514,7 @@ export default function LandingPage() {
       {/* HERO */}
       <section className="relative overflow-hidden pt-36 sm:pt-40 pb-0 px-6" style={{ backgroundImage: `${dotGrid}`, backgroundSize: "22px 22px", backgroundPosition: "-11px -11px" }}>
         <div className="absolute inset-0 bg-gradient-to-b from-white via-white/95 to-white pointer-events-none" style={{ maskImage: "radial-gradient(ellipse at center, black 40%, transparent 85%)" }} />
-        <div className="anim-blob absolute -top-24 -left-20 w-[30rem] h-[30rem] rounded-full bg-[#F97316]/15 blur-3xl" />
+        <div className="anim-blob absolute -top-24 -left-20 w-[30rem] h-[30rem] rounded-full bg-[var(--color-primary-600)]/15 blur-3xl" />
         <div className="anim-blob absolute top-24 -right-24 w-[28rem] h-[28rem] rounded-full bg-[#FDBA74]/25 blur-3xl" style={{ animationDelay: "3s" }} />
 
         <div className="relative max-w-6xl mx-auto grid md:grid-cols-2 gap-14 items-center pb-16">
@@ -526,7 +526,7 @@ export default function LandingPage() {
             <h1 className="text-4xl sm:text-5xl leading-[1.1] font-extrabold tracking-tight mt-6 uppercase">
               La suite ERP<br />
               <span className="relative inline-block">
-                <span className="relative z-10 text-transparent bg-clip-text" style={{ backgroundImage: "linear-gradient(135deg,#F97316,#EA580C)" }}>nouvelle génération</span>
+                <span className="relative z-10 text-transparent bg-clip-text" style={{ backgroundImage: "linear-gradient(135deg,var(--color-primary-600),#EA580C)" }}>nouvelle génération</span>
                 <svg className="absolute -bottom-1 left-0 w-full" height="10" viewBox="0 0 200 10" preserveAspectRatio="none"><path d="M0,7 Q50,0 100,6 T200,5" stroke="#FDBA74" strokeWidth="5" fill="none" strokeLinecap="round" /></svg>
               </span><br />
               pour l'Afrique de l'Ouest
@@ -541,7 +541,7 @@ export default function LandingPage() {
                 "Paiement Mobile Money : Orange, MTN, Wave",
                 "Assistant IA et automatisation inclus",
               ].map((b) => (
-                <li key={b} className="flex items-center gap-2.5 text-sm text-gray-700"><Check size={16} className="text-[#F97316] shrink-0" /> {b}</li>
+                <li key={b} className="flex items-center gap-2.5 text-sm text-gray-700"><Check size={16} className="text-[var(--color-primary-600)] shrink-0" /> {b}</li>
               ))}
             </ul>
 
@@ -550,9 +550,9 @@ export default function LandingPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-7 text-xs text-gray-500">
-              <span className="flex items-center gap-1.5"><ShieldCheck size={14} className="text-[#F97316]" /> Conforme DGI</span>
-              <span className="flex items-center gap-1.5"><MapPin size={14} className="text-[#F97316]" /> 8 pays UEMOA</span>
-              <span className="flex items-center gap-1.5"><Headphones size={14} className="text-[#F97316]" /> Support en français</span>
+              <span className="flex items-center gap-1.5"><ShieldCheck size={14} className="text-[var(--color-primary-600)]" /> Conforme DGI</span>
+              <span className="flex items-center gap-1.5"><MapPin size={14} className="text-[var(--color-primary-600)]" /> 8 pays UEMOA</span>
+              <span className="flex items-center gap-1.5"><Headphones size={14} className="text-[var(--color-primary-600)]" /> Support en français</span>
             </div>
           </div>
 
@@ -567,7 +567,7 @@ export default function LandingPage() {
               <div className="flex justify-center pt-1.5 pb-2"><div className="w-12 h-1.5 rounded-full bg-gray-200" /></div>
               <p className="px-2 text-[10px] font-semibold text-gray-400 mb-2">Factures récentes</p>
               <div className="px-2 pb-2 space-y-2">
-                {[{ n: "Koné", s: "bg-green-500" }, { n: "Diallo & Fils", s: "bg-[#F97316]" }, { n: "Traoré Design", s: "bg-green-500" }].map((r) => (
+                {[{ n: "Koné", s: "bg-green-500" }, { n: "Diallo & Fils", s: "bg-[var(--color-primary-600)]" }, { n: "Traoré Design", s: "bg-green-500" }].map((r) => (
                   <div key={r.n} className="flex items-center justify-between bg-gray-50 rounded-lg px-2.5 py-2 border border-gray-100">
                     <span className="text-[11px] text-gray-600 font-medium">{r.n}</span>
                     <span className={`w-1.5 h-1.5 rounded-full ${r.s}`} />
@@ -578,13 +578,13 @@ export default function LandingPage() {
 
             {/* Badges flottants */}
             <div className="hidden lg:flex absolute top-0 left-6 items-center gap-2 bg-white rounded-xl shadow-2xl shadow-orange-500/20 px-3.5 py-2.5 border border-orange-100 anim-float">
-              <span className="w-2 h-2 rounded-full bg-[#F97316]" /><span className="text-[11px] font-semibold text-gray-700">En retard</span>
+              <span className="w-2 h-2 rounded-full bg-[var(--color-primary-600)]" /><span className="text-[11px] font-semibold text-gray-700">En retard</span>
             </div>
             <div className="hidden lg:flex absolute bottom-24 right-0 items-center gap-2 bg-white rounded-xl shadow-2xl shadow-orange-500/20 px-3.5 py-2.5 border border-orange-100 anim-float" style={{ animationDelay: "1.2s" }}>
               <CheckCircle2 size={14} className="text-green-600" /><span className="text-[11px] font-semibold text-gray-700">À jour</span>
             </div>
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-2.5 bg-white rounded-xl shadow-2xl shadow-orange-500/25 px-4 py-3 border border-orange-100 anim-float" style={{ animationDelay: "2s" }}>
-              <QrCode size={22} className="text-[#F97316]" />
+              <QrCode size={22} className="text-[var(--color-primary-600)]" />
               <div className="leading-tight"><p className="text-[11px] font-bold text-gray-900">Certification FNE</p><p className="text-[9px] text-gray-400">Conforme DGI Côte d'Ivoire</p></div>
             </div>
           </div>
@@ -600,7 +600,7 @@ export default function LandingPage() {
               { icon: Lock, t: "Données sécurisées", s: "Hébergement Supabase chiffré" },
             ].map((b) => (
               <div key={b.t} className="flex items-center gap-3 rounded-xl border border-orange-100 bg-orange-50/50 px-4 py-3 hover:bg-orange-50 transition-colors">
-                <b.icon size={18} className="text-[#F97316] shrink-0" />
+                <b.icon size={18} className="text-[var(--color-primary-600)] shrink-0" />
                 <div className="text-left"><p className="text-xs font-semibold text-gray-800 leading-tight">{b.t}</p><p className="text-[11px] text-gray-500 leading-tight">{b.s}</p></div>
               </div>
             ))}
@@ -612,7 +612,7 @@ export default function LandingPage() {
       <div className="relative overflow-hidden border-y border-orange-100 bg-[#FFF7ED] py-4">
         <div className="flex w-max anim-marquee">
           {[...countries, ...countries].map((c, i) => (
-            <span key={i} className="flex items-center gap-2 mx-6 text-sm font-semibold text-[#C2410C] whitespace-nowrap">
+            <span key={i} className="flex items-center gap-2 mx-6 text-sm font-semibold text-[var(--color-primary-700)] whitespace-nowrap">
               <MapPin size={14} /> {c.city} <span className="text-gray-400 font-normal">· {c.pays}</span>
             </span>
           ))}
@@ -631,7 +631,7 @@ export default function LandingPage() {
             {countries.map((c, i) => (
               <Reveal key={c.city} delay={i * 60}>
                 <div className="rounded-2xl border border-orange-100 bg-[#FFF7ED] px-4 py-5 hover:shadow-lg hover:shadow-orange-500/10 hover:-translate-y-1 transition-all duration-300">
-                  <div className="w-9 h-9 rounded-full mx-auto flex items-center justify-center mb-2" style={{ background: "linear-gradient(145deg,#FDBA74,#F97316)" }}>
+                  <div className="w-9 h-9 rounded-full mx-auto flex items-center justify-center mb-2" style={{ background: "linear-gradient(145deg,#FDBA74,var(--color-primary-600))" }}>
                     <MapPin size={16} className="text-white" />
                   </div>
                   <p className="text-sm font-bold text-gray-900">{c.city}</p>
@@ -652,11 +652,11 @@ export default function LandingPage() {
 
       {/* STATS */}
       <section className="px-6 py-16 relative overflow-hidden" style={{ background: "linear-gradient(180deg,#0F172A,#1C1917)" }}>
-        <div className="anim-blob absolute top-0 right-1/4 w-96 h-96 rounded-full bg-[#F97316]/20 blur-3xl" />
+        <div className="anim-blob absolute top-0 right-1/4 w-96 h-96 rounded-full bg-[var(--color-primary-600)]/20 blur-3xl" />
         <div className="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center text-white relative">
           {[{ v: 16, s: "", l: "Modules ERP intégrés" }, { v: 3, s: "", l: "Opérateurs Mobile Money" }, { v: 100, s: "%", l: "Conforme FNE / DGI" }, { v: 60, s: "s", l: "Pour créer une facture" }].map((s) => (
             <div key={s.l}>
-              <p className="text-3xl sm:text-5xl font-extrabold text-transparent bg-clip-text" style={{ backgroundImage: "linear-gradient(135deg,#FDBA74,#F97316)" }}><Counter value={s.v} suffix={s.s} /></p>
+              <p className="text-3xl sm:text-5xl font-extrabold text-transparent bg-clip-text" style={{ backgroundImage: "linear-gradient(135deg,#FDBA74,var(--color-primary-600))" }}><Counter value={s.v} suffix={s.s} /></p>
               <p className="text-xs text-gray-400 mt-2">{s.l}</p>
             </div>
           ))}
@@ -681,7 +681,7 @@ export default function LandingPage() {
                   style={active ? { background: "linear-gradient(135deg,#FB923C,#EA580C)", color: "white", borderColor: "transparent", boxShadow: "0 8px 20px -6px rgba(249,115,22,0.55)" } : { background: "white", color: "#4B5563", borderColor: "#E5E7EB" }}>
                   <t.icon size={15} /> {t.label}
                   {t.badge && (
-                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${active ? "bg-white/25 text-white" : t.badge === "IA" ? "bg-green-100 text-green-700" : "bg-orange-100 text-[#C2410C]"}`}>{t.badge}</span>
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${active ? "bg-white/25 text-white" : t.badge === "IA" ? "bg-green-100 text-green-700" : "bg-orange-100 text-[var(--color-primary-700)]"}`}>{t.badge}</span>
                   )}
                 </button>
               );
@@ -695,7 +695,7 @@ export default function LandingPage() {
               <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-4">{tabs[activeTab].title}</h3>
               <p className="text-gray-600 mt-4 leading-relaxed">{tabs[activeTab].text}</p>
               <ul className="mt-6 space-y-3">
-                {tabs[activeTab].bullets.map((b) => <li key={b} className="flex items-start gap-2.5 text-sm text-gray-700"><CheckCircle2 size={17} className="text-[#F97316] mt-0.5 shrink-0" /> {b}</li>)}
+                {tabs[activeTab].bullets.map((b) => <li key={b} className="flex items-start gap-2.5 text-sm text-gray-700"><CheckCircle2 size={17} className="text-[var(--color-primary-600)] mt-0.5 shrink-0" /> {b}</li>)}
               </ul>
             </div>
           </div>
@@ -717,7 +717,7 @@ export default function LandingPage() {
                   <div>
                     <h3 className="text-xl sm:text-2xl font-extrabold tracking-tight">{s.title}</h3>
                     <ul className="mt-4 grid sm:grid-cols-2 gap-x-6 gap-y-2.5">
-                      {s.points.map((p) => <li key={p} className="flex items-start gap-2.5 text-sm text-gray-700"><Check size={16} className="text-[#F97316] mt-0.5 shrink-0" /> {p}</li>)}
+                      {s.points.map((p) => <li key={p} className="flex items-start gap-2.5 text-sm text-gray-700"><Check size={16} className="text-[var(--color-primary-600)] mt-0.5 shrink-0" /> {p}</li>)}
                     </ul>
                   </div>
                 </div>
@@ -739,7 +739,7 @@ export default function LandingPage() {
                   <span className="inline-block bg-gray-900 text-white px-4 py-1.5 rounded-full text-xl sm:text-2xl mt-2">100% gratuite pour démarrer</span>
                 </h3>
                 <p className="text-orange-50 mt-5 max-w-md">FactureFlow est une solution complète — facturation certifiée FNE, stock, achats, trésorerie, RH — que vous pouvez essayer sans frais cachés et sans engagement.</p>
-                <a href="#" className="inline-flex items-center gap-2 mt-7 text-sm font-semibold text-[#C2410C] bg-white hover:bg-orange-50 px-6 py-3 rounded-lg transition-colors">S'équiper sans engagement</a>
+                <a href="#" className="inline-flex items-center gap-2 mt-7 text-sm font-semibold text-[var(--color-primary-700)] bg-white hover:bg-orange-50 px-6 py-3 rounded-lg transition-colors">S'équiper sans engagement</a>
               </div>
               <div className="relative flex items-center">
                 <ImagePlaceholder label="Visuel produit (capture d'écran ou illustration à ajouter)" ratio="aspect-[4/3]" className="w-full" dark />
@@ -750,7 +750,7 @@ export default function LandingPage() {
 
           <Reveal className="text-center mt-20 mb-14">
             <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              Passez sur la <span className="inline-block bg-orange-100 text-[#C2410C] px-3 py-1 rounded-full">suite ERP</span> FactureFlow
+              Passez sur la <span className="inline-block bg-orange-100 text-[var(--color-primary-700)] px-3 py-1 rounded-full">suite ERP</span> FactureFlow
             </h2>
           </Reveal>
           <div className="grid md:grid-cols-2 gap-x-16 gap-y-12">
@@ -772,7 +772,7 @@ export default function LandingPage() {
             <h2 className="text-3xl font-extrabold tracking-tight mt-3">Des offres simples, qui évoluent avec vous</h2>
             <div className="inline-flex items-center gap-1 mt-6 bg-gray-100 rounded-full p-1">
               <button onClick={() => setAnnual(false)} className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-colors ${!annual ? "bg-white shadow text-gray-900" : "text-gray-500"}`}>Mensuel</button>
-              <button onClick={() => setAnnual(true)} className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-colors ${annual ? "bg-white shadow text-gray-900" : "text-gray-500"}`}>Annuel <span className="text-[#F97316]">-20%</span></button>
+              <button onClick={() => setAnnual(true)} className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-colors ${annual ? "bg-white shadow text-gray-900" : "text-gray-500"}`}>Annuel <span className="text-[var(--color-primary-600)]">-20%</span></button>
             </div>
             <p className="text-xs text-gray-400 mt-2">Montants indicatifs en FCFA — à confirmer avant mise en ligne</p>
           </Reveal>
@@ -781,7 +781,7 @@ export default function LandingPage() {
               const price = annual ? p.yearly : p.monthly;
               return (
                 <Reveal key={p.name} delay={i * 90}>
-                  <div className={`rounded-2xl p-6 h-full text-left flex flex-col relative ${p.tag ? "text-white shadow-2xl scale-[1.05]" : "border border-gray-200 bg-white"}`} style={p.tag ? { background: "linear-gradient(160deg,#FB923C,#C2410C)" } : {}}>
+                  <div className={`rounded-2xl p-6 h-full text-left flex flex-col relative ${p.tag ? "text-white shadow-2xl scale-[1.05]" : "border border-gray-200 bg-white"}`} style={p.tag ? { background: "linear-gradient(160deg,#FB923C,var(--color-primary-700))" } : {}}>
                     {p.tag && <span className="text-[10px] font-bold uppercase tracking-widest bg-white/20 text-white px-2 py-1 rounded-full w-fit mb-2">{p.tag}</span>}
                     <p className={`font-bold ${p.tag ? "text-white" : "text-gray-900"}`}>{p.name}</p>
                     <p className="text-2xl font-extrabold mt-2">
@@ -789,9 +789,9 @@ export default function LandingPage() {
                       {price !== null && price !== 0 && <span className={`text-xs font-medium ${p.tag ? "text-white/70" : "text-gray-400"}`}>/mois</span>}
                     </p>
                     <ul className="mt-5 space-y-2.5 flex-1">
-                      {p.points.map((pt) => <li key={pt} className={`text-[13px] flex items-start gap-2 ${p.tag ? "text-white/90" : "text-gray-600"}`}><Check size={14} className={`mt-0.5 shrink-0 ${p.tag ? "text-white" : "text-[#F97316]"}`} /> {pt}</li>)}
+                      {p.points.map((pt) => <li key={pt} className={`text-[13px] flex items-start gap-2 ${p.tag ? "text-white/90" : "text-gray-600"}`}><Check size={14} className={`mt-0.5 shrink-0 ${p.tag ? "text-white" : "text-[var(--color-primary-600)]"}`} /> {pt}</li>)}
                     </ul>
-                    <a href="#" className={`mt-6 text-sm font-semibold text-center py-2.5 rounded-lg transition-colors ${p.tag ? "bg-white text-[#C2410C] hover:bg-orange-50" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>Choisir</a>
+                    <a href="#" className={`mt-6 text-sm font-semibold text-center py-2.5 rounded-lg transition-colors ${p.tag ? "bg-white text-[var(--color-primary-700)] hover:bg-orange-50" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>Choisir</a>
                   </div>
                 </Reveal>
               );
@@ -848,7 +848,7 @@ export default function LandingPage() {
             {faqs.map((f, i) => (
               <div key={f.q} className="border border-orange-100 rounded-xl overflow-hidden bg-white">
                 <button className="w-full flex items-center justify-between px-5 py-4 text-left text-sm font-semibold text-gray-800" onClick={() => setOpenFaq(openFaq === i ? -1 : i)}>
-                  {f.q}<ChevronDown size={16} className={`transition-transform shrink-0 ml-3 ${openFaq === i ? "rotate-180 text-[#F97316]" : ""}`} />
+                  {f.q}<ChevronDown size={16} className={`transition-transform shrink-0 ml-3 ${openFaq === i ? "rotate-180 text-[var(--color-primary-600)]" : ""}`} />
                 </button>
                 <div className="px-5 text-sm text-gray-600 leading-relaxed transition-all duration-300 overflow-hidden" style={{ maxHeight: openFaq === i ? "160px" : "0px", paddingBottom: openFaq === i ? "16px" : "0px" }}>{f.a}</div>
               </div>
@@ -864,7 +864,7 @@ export default function LandingPage() {
           <div className="anim-blob absolute -top-16 -right-10 w-72 h-72 rounded-full bg-white/10 blur-3xl" style={{ animationDelay: "4s" }} />
           <h2 className="text-3xl sm:text-4xl font-extrabold text-white relative tracking-tight">Votre prochaine facture, en moins d'une minute.</h2>
           <p className="text-orange-50 mt-4 relative">Aucune carte bancaire requise pour commencer.</p>
-          <a href="#" className="inline-flex items-center gap-2 mt-8 text-sm font-semibold text-[#C2410C] bg-white hover:bg-orange-50 px-7 py-3.5 rounded-lg transition-transform hover:scale-105 relative">Créer mon compte gratuit <ArrowRight size={16} /></a>
+          <a href="#" className="inline-flex items-center gap-2 mt-8 text-sm font-semibold text-[var(--color-primary-700)] bg-white hover:bg-orange-50 px-7 py-3.5 rounded-lg transition-transform hover:scale-105 relative">Créer mon compte gratuit <ArrowRight size={16} /></a>
         </Reveal>
       </section>
 
@@ -879,7 +879,7 @@ export default function LandingPage() {
       <footer className="px-6 py-16 border-t border-gray-200">
         <div className="max-w-6xl mx-auto grid sm:grid-cols-2 md:grid-cols-5 gap-10">
           <div className="col-span-2 md:col-span-1">
-            <div className="flex items-center gap-2 mb-3"><div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: "linear-gradient(145deg,#FDBA74,#F97316)" }}><span className="text-white text-[10px] font-extrabold">FF</span></div><span className="font-bold">FactureFlow</span></div>
+            <div className="flex items-center gap-2 mb-3"><div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: "linear-gradient(145deg,#FDBA74,var(--color-primary-600))" }}><span className="text-white text-[10px] font-extrabold">FF</span></div><span className="font-bold">FactureFlow</span></div>
             <p className="text-xs text-gray-400 flex items-center gap-1"><MapPin size={12} /> Basée à Abidjan · Zone UEMOA</p>
             <p className="text-xs text-gray-400 flex items-center gap-1 mt-1"><Headphones size={12} /> Support en français</p>
           </div>
