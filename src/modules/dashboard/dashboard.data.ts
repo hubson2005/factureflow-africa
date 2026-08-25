@@ -6,7 +6,7 @@ import {
   FileText, ClipboardList, Receipt, Users, Package,
   LayoutDashboard, CreditCard, BarChart3, Sparkles,
   Settings, Home, MoreHorizontal, Landmark, Plus, ShieldAlert, Zap,
-  TrendingUp, Repeat, Warehouse, Truck, Contact,
+  TrendingUp, Repeat, Warehouse, Truck, Contact, Calculator,
 } from "lucide-react";
 import type { NavItem } from "./dashboard.types";
 
@@ -26,6 +26,7 @@ export const sidebarNav: NavItem[] = [
   { icon: Zap, label: "Automatisation", path: "/automation" },
   { icon: Receipt, label: "Dépenses", path: "/expenses" },
   { icon: TrendingUp, label: "Trésorerie", path: "/cashflow", badge: "NOUVEAU" },
+  { icon: Calculator, label: "Comptabilité", path: "/accounting" },
   { icon: Contact, label: "Ressources humaines", path: "/hr" },
   { icon: BarChart3, label: "Rapports", path: "/reports" },
   { icon: Sparkles, label: "Assistant IA", path: "/assistant", badge: "NOUVEAU" },

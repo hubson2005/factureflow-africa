@@ -58,7 +58,7 @@ const NAV_SECTIONS: { title: string; labels: string[] }[] = [
   { title: "Général", labels: ["Dashboard"] },
   { title: "Facturation", labels: ["Factures", "Facturation récurrente", "Devis"] },
   { title: "Relations", labels: ["Clients", "Produits", "Stock"] },
-  { title: "Finances", labels: ["Paiements", "Achats", "Comptes", "Recouvrement IA", "Dépenses", "Trésorerie"] },
+  { title: "Finances", labels: ["Paiements", "Achats", "Comptes", "Recouvrement IA", "Dépenses", "Trésorerie", "Comptabilité"] },
   { title: "Ressources humaines", labels: ["Ressources humaines"] },
   { title: "Pilotage", labels: ["Rapports", "Automatisation", "Assistant IA"] },
   { title: "Système", labels: ["Paramètres"] },
