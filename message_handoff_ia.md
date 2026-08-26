@@ -642,3 +642,90 @@ retire par principe de moindre privilege.
   ecrites et pas auditees en profondeur). Plus risque a fusionner sans
   comprendre l'intention originale du design platform_admin. Laisse tel
   quel, signale pour un audit dedie si Hubert le souhaite un jour.
+
+## Module Comptabilite SYSCOHADA, Phase 1 (24/08/2026)
+
+D'apres le cahier des charges fourni par Hubert. Phase 1 uniquement
+(socle + generation auto Factures/Paiements) -- Depenses/Achats en
+Phase 2, non commence.
+
+**Points explicitement en attente de validation par un expert-comptable**
+(section 12 du cahier des charges, PAS tranches, ne pas deviner) :
+- fiabilite du mapping comptable par defaut
+- format exact de l'export DSF (non traite en Phase 1)
+- seuils SMT -> Systeme Normal (non traite en Phase 1)
+- compte mobile money : place provisoirement sous 585 "Virements de
+  fonds", AUCUNE nomenclature SYSCOHADA officielle stable a ce jour
+  pour le mobile money -- le plus incertain des choix faits, signale
+  en clair dans le code (initialize_accounting) et l'UI
+  (Accounting.tsx).
+
+Schema : chart_of_accounts, fiscal_years, accounting_journals,
+journal_entries, journal_entry_lines, account_mapping_rules.
+_create_balanced_journal_entry() est le coeur du moteur (interne,
+EXECUTE non accorde a authenticated) : cree en-tete + lignes de facon
+atomique, refuse tout desequilibre debit != credit. Generation
+automatique via triggers sur invoices (emission, une fois par facture)
+et payments (a l'enregistrement) -- meme philosophie que
+sync_stock_on_invoice_item : ne bloque jamais l'action metier si la
+comptabilite n'est pas activee pour l'entreprise.
+
+Route /accounting, page Accounting.tsx (activation, journal, balance
+generale, saisie manuelle admin/comptable).
+
+## FAILLE DE SECURITE SYSTEMIQUE trouvee et corrigee (24/08/2026)
+
+**A LIRE AVANT D'ECRIRE TOUTE NOUVELLE FONCTION SECURITY DEFINER.**
+
+En testant le module Comptabilite, decouverte d'un piege SQL présent
+dans PLUSIEURS fonctions, dont deux datant d'AVANT cette session
+(generate_api_key, convert_quote_to_invoice -- probablement ecrites
+par l'autre IA ou dans une session anterieure) :
+
+```sql
+-- DANGEREUX -- ne jamais ecrire ca :
+if user_role_in_company(p_company_id) <> 'admin' then raise exception ...
+if user_role_in_company(p_company_id) not in ('admin','comptable') then raise exception ...
+```
+
+`user_role_in_company()` renvoie **NULL** (pas une chaine vide) quand
+l'utilisateur n'appartient a AUCUNE entreprise. Or en SQL,
+`NULL <> 'admin'` et `NULL not in (...)` valent **NULL**, pas TRUE. Et
+`IF NULL THEN ...` en PL/pgSQL est traite comme **FALSE** -- l'exception
+ne se declenche jamais. Consequence concrete : un utilisateur
+authentifie mais sans AUCUNE appartenance a une entreprise contournait
+silencieusement le controle d'acces.
+
+**6 fonctions etaient touchees**, toutes corrigees le 24/08/2026 :
+`generate_api_key`, `convert_quote_to_invoice`, `set_fne_api_key`,
+`clear_fne_api_key`, `initialize_accounting`, `create_manual_journal_entry`.
+
+**Le bon pattern, toujours utiliser desormais :**
+```sql
+declare
+  v_role text;
+begin
+  v_role := user_role_in_company(p_company_id);
+  if v_role is null or v_role <> 'admin' then
+    raise exception 'Acces refuse';
+  end if;
+```
+(ou `v_role is null or v_role not in (...)` pour plusieurs roles
+acceptes). Ne jamais utiliser `user_role_in_company(x) <> ...` ou
+`not in` directement dans le IF sans capturer le resultat dans une
+variable et tester le NULL explicitement en premier.
+
+**Comment j'ai trouve ca** : en testant systematiquement chaque
+nouvelle fonction avec un utilisateur cree specifiquement SANS AUCUNE
+appartenance a une entreprise (pas juste "appartient a une AUTRE
+entreprise", qui etait mon scenario de test habituel jusque-la) --
+c'est le scenario precis qui declenche le bug. **A ajouter au reflexe
+de test standard pour toute nouvelle fonction SECURITY DEFINER : tester
+avec un membre d'une autre entreprise ET avec un utilisateur
+n'appartenant a AUCUNE entreprise.**
+
+**Recommandation forte** : un audit dedie de TOUTES les fonctions
+SECURITY DEFINER existantes (au-dela des 6 deja trouvees) pour ce
+pattern specifique serait utile -- je n'ai corrige que celles
+rencontrees en travaillant sur ce module, il pourrait y en avoir
+d'autres non encore testees avec ce scenario precis.
