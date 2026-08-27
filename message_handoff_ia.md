@@ -761,3 +761,19 @@ de stock meme pour un produit avec `track_stock=false` (incoherence
 avec le comportement cote factures, qui verifie bien `track_stock`
 avant de mouvementer le stock). Pas corrige, sans rapport avec la
 comptabilite, a traiter a l'occasion.
+
+## Module Comptabilite -- MIS EN PAUSE (24/08/2026)
+
+Phases 1 et 2 terminees, testees, en production (voir sections
+precedentes). Phases 3 (Etats SMT), 4 (Etats Systeme Normal) et 5
+(Cloture + export DSF) **volontairement pas commencees** : toutes les
+trois dependent structurellement des questions non tranchees de la
+section 12 du cahier des charges (seuils SMT->Systeme Normal, format
+exact de l'export DSF) -- pas possible de les construire correctement
+sans validation par un expert-comptable. Hubert a choisi de mettre en
+pause plutot que de deviner.
+
+**Pour reprendre** : attendre que Hubert revienne avec les reponses de
+son expert-comptable sur ces points, puis relire le cahier des charges
+original (upload dans la conversation du 24/08/2026) pour les details
+exacts de Phase 3/4/5 avant de commencer.
