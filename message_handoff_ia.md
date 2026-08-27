@@ -729,3 +729,35 @@ SECURITY DEFINER existantes (au-dela des 6 deja trouvees) pour ce
 pattern specifique serait utile -- je n'ai corrige que celles
 rencontrees en travaillant sur ce module, il pourrait y en avoir
 d'autres non encore testees avec ce scenario precis.
+
+## Module Comptabilite -- Phase 2 (24/08/2026)
+
+Extension aux Depenses et Achats, d'apres le cahier des charges
+("aucune facture, paiement, depense ou achat valide ne peut exister
+sans ecriture comptable correspondante"). extend_accounting_phase2()
+chaine automatiquement apres initialize_accounting() cote frontend --
+un seul bouton "Activer la comptabilite" pour l'utilisateur, 19 comptes
+crees (8 Phase 1 + 11 Phase 2).
+
+Meme reserve qu'en Phase 1 : mapping categorie de depense -> compte
+SYSCOHADA (605/622/624/625/628/632/638/661) est une premiere
+approximation, PAS validee par un expert-comptable.
+
+**Bug trouve par relecture de code AVANT meme de tester** (bonne
+pratique a retenir : relire le code une fois de plus avant de lancer
+les tests, pas seulement apres un echec) : reception ET paiement d'un
+meme achat generaient tous deux `source_type='purchase'` -> collision
+avec la contrainte unique, l'ecriture de paiement etait silencieusement
+avalee. Corrige en ajoutant `purchase_payment` comme source_type
+distinct (contrainte check sur journal_entries mise a jour).
+
+Corrige au passage : `sync_treasury_on_expense()` ignorait
+`payment_method` (colonne existante jamais utilisee depuis la creation
+du module Tresorerie) -- desormais route vers le bon compte de
+tresorerie selon la methode choisie.
+
+**Note mineure non traitee** : `receive_purchase()` cree un mouvement
+de stock meme pour un produit avec `track_stock=false` (incoherence
+avec le comportement cote factures, qui verifie bien `track_stock`
+avant de mouvementer le stock). Pas corrige, sans rapport avec la
+comptabilite, a traiter a l'occasion.
