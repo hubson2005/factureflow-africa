@@ -20,8 +20,14 @@ export function useInitializeAccounting() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.rpc("initialize_accounting", { p_company_id: company.company_id });
-      if (error) throw error;
+      const { error: err1 } = await supabase.rpc("initialize_accounting", { p_company_id: company.company_id });
+      if (err1) throw err1;
+      // Phase 2 (Depenses/Achats) : idempotent, s'applique automatiquement a
+      // la suite de la Phase 1 -- l'utilisateur n'a qu'une seule action
+      // "Activer la comptabilite" a faire, le decoupage en phases est un
+      // detail de deploiement interne, pas une distinction utile cote UI.
+      const { error: err2 } = await supabase.rpc("extend_accounting_phase2", { p_company_id: company.company_id });
+      if (err2) throw err2;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chart-of-accounts"] });
