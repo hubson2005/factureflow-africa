@@ -777,3 +777,45 @@ pause plutot que de deviner.
 son expert-comptable sur ces points, puis relire le cahier des charges
 original (upload dans la conversation du 24/08/2026) pour les details
 exacts de Phase 3/4/5 avant de commencer.
+
+## Module Comptabilite -- Phase 3 (SMT) + Phase 4 (Systeme Normal) FAITES (24/08/2026)
+
+Reprise apres la mise en pause : en relisant precisement la section 12
+du cahier des charges, les points bloques (seuil SMT->SN, format DSF)
+concernent specifiquement l'ALERTE de bascule et l'EXPORT DSF (Phase 5),
+PAS les rapports Phase 3/4 eux-memes -- ceux-ci sont des lectures pures
+sur les donnees deja construites en Phase 1-2, pas de dependance a la
+validation comptable. Phase 5 (cloture, a-nouveaux, export DSF) reste
+en pause pour les memes raisons qu'avant.
+
+`companies.accounting_system` ('smt'/'normal') : reglage MANUEL par
+l'entreprise, pas de calcul automatique par seuil de CA (c'est
+precisement le point encore bloque). Distinct de `tax_regime` (regime
+fiscal TVA, autre concept).
+
+Phase 3 (SMT) -- "Etat de recettes/depenses" : construit sur
+`treasury_transactions` (approche caisse, module Tresorerie deja
+existant), PAS sur les ecritures comptables en engagement -- une
+facture emise mais non payee n'est pas encore une "recette" au sens
+SMT. Point important a retenir pour toute IA qui reprendrait ce
+module : ne pas confondre les deux bases comptables.
+
+Phase 4 (Systeme Normal) -- Bilan + Compte de resultat par nature.
+**Point technique important trouve en testant** : un bilan construit
+uniquement a partir des classes 1-5 ne s'equilibre PAS tant que
+l'exercice n'est pas cloture (le resultat de la periode n'a pas encore
+ete vire vers un compte de reserves). Corrige en ajoutant une ligne
+calculee "Resultat net de l'exercice" au passif, egale a
+Actif - Passif (hors cette ligne) -- pratique comptable standard pour
+un "bilan avant affectation". A refaire correctement lors de la Phase
+5 (cloture d'exercice), qui devra alors REELLEMENT solder les comptes
+6/7 vers un compte de report a nouveau plutot que de calculer cette
+ligne a la volee cote frontend.
+
+TAFIRE (3e etat Systeme Normal, tableau des flux financiers) PAS
+construit -- complexite significativement superieure, defere sans
+date precise.
+
+Teste avec un scenario complet (vente 236000 encaissee, depense loyer
+80000) : les 3 rapports (recettes/depenses, compte de resultat, bilan)
+donnent des chiffres coherents entre eux au centime pres.
