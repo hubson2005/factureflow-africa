@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Calculator, Plus, Loader2, ScrollText, Scale, ShieldCheck, Trash2 } from "lucide-react";
+import { Calculator, Plus, Loader2, ScrollText, Scale, ShieldCheck, Trash2, FileBarChart, Landmark } from "lucide-react";
 import { palette, colors, radius, shadow } from "@/theme/tokens";
 import { Header } from "../components/shell/Header";
 import { useCompany } from "../hooks/useCompany";
 import {
   useChartOfAccounts, useInitializeAccounting, useJournalEntries, useTrialBalance,
-  useCreateManualJournalEntry, useAccountingJournals,
+  useCreateManualJournalEntry, useAccountingJournals, useSetAccountingSystem,
+  useIncomeExpenseStatement, useBalanceSheet, useIncomeStatement,
 } from "../modules/accounting/useAccounting";
 
 const font = "'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif";
@@ -21,11 +22,13 @@ export default function Accounting() {
   const { data: entries, isLoading: entriesLoading } = useJournalEntries();
   const { data: balance, isLoading: balanceLoading } = useTrialBalance();
   const initAccounting = useInitializeAccounting();
+  const setAccountingSystem = useSetAccountingSystem();
   const [tab, setTab] = useState("journal");
   const [showEntryForm, setShowEntryForm] = useState(false);
 
   const isInitialized = !accountsLoading && (accounts || []).length > 0;
   const canManage = company?.role === "admin" || company?.role === "comptable";
+  const isSMT = company?.companies?.accounting_system !== "normal";
 
   if (accountsLoading) {
     return (
@@ -82,18 +85,36 @@ export default function Accounting() {
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, flexWrap: "wrap", gap: 8 }}>
         <Header title="Comptabilité" />
-        {canManage && (
-          <button onClick={() => setShowEntryForm(true)} style={{
-            display: "flex", alignItems: "center", gap: 6, padding: "9px 14px",
-            borderRadius: radius.md, background: palette.primary.solid, color: colors.white,
-            border: "none", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: font }}>
-            <Plus size={15} /> Écriture manuelle
-          </button>
-        )}
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {canManage && (
+            <select value={company?.companies?.accounting_system || "smt"}
+              onChange={(e) => setAccountingSystem.mutate(e.target.value)}
+              style={{ padding: "8px 10px", borderRadius: radius.md, border: "1px solid " + colors.gray[200],
+                fontSize: 12.5, fontFamily: font, outline: "none", background: colors.white }}>
+              <option value="smt">Régime SMT</option>
+              <option value="normal">Régime Système Normal</option>
+            </select>
+          )}
+          {canManage && (
+            <button onClick={() => setShowEntryForm(true)} style={{
+              display: "flex", alignItems: "center", gap: 6, padding: "9px 14px",
+              borderRadius: radius.md, background: palette.primary.solid, color: colors.white,
+              border: "none", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: font }}>
+              <Plus size={15} /> Écriture manuelle
+            </button>
+          )}
+        </div>
       </div>
 
-      <div style={{ display: "flex", gap: 4, marginBottom: 16, marginTop: 12, borderBottom: "1px solid " + colors.gray[200] }}>
-        {[{ id: "journal", label: "Journal", icon: ScrollText }, { id: "balance", label: "Balance générale", icon: Scale }].map((t) => (
+      <div style={{ display: "flex", gap: 4, marginBottom: 16, marginTop: 12, borderBottom: "1px solid " + colors.gray[200], flexWrap: "wrap" }}>
+        {[
+          { id: "journal", label: "Journal", icon: ScrollText },
+          { id: "balance", label: "Balance générale", icon: Scale },
+          isSMT
+            ? { id: "recettes", label: "Recettes / Dépenses", icon: FileBarChart }
+            : { id: "bilan", label: "Bilan", icon: Landmark },
+          !isSMT && { id: "resultat", label: "Compte de résultat", icon: FileBarChart },
+        ].filter(Boolean).map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{
             display: "flex", alignItems: "center", gap: 6, padding: "10px 14px", border: "none", background: "none",
             cursor: "pointer", fontFamily: font, fontSize: 13, fontWeight: 700,
@@ -114,10 +135,14 @@ export default function Accounting() {
             {entries.map((e) => <EntryCard key={e.id} entry={e} />)}
           </div>
         )
-      ) : balanceLoading ? (
-        <Loader2 size={18} className="animate-spin" color={palette.primary.solid} />
+      ) : tab === "balance" ? (
+        balanceLoading ? <Loader2 size={18} className="animate-spin" color={palette.primary.solid} /> : <TrialBalanceTable balance={balance || []} />
+      ) : tab === "recettes" ? (
+        <IncomeExpenseStatementPanel />
+      ) : tab === "bilan" ? (
+        <BalanceSheetPanel />
       ) : (
-        <TrialBalanceTable balance={balance || []} />
+        <IncomeStatementPanel />
       )}
     </>
   );
@@ -157,6 +182,116 @@ function EntryCard({ entry }) {
             </span>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function IncomeExpenseStatementPanel() {
+  const { data, isLoading } = useIncomeExpenseStatement();
+  if (isLoading) return <Loader2 size={18} className="animate-spin" color={palette.primary.solid} />;
+  if (!data || data.lines.length === 0) return <EmptyPanel text="Aucun mouvement de trésorerie enregistré pour le moment." />;
+
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10, marginBottom: 16 }}>
+        <SummaryCard label="Recettes" value={data.totalRecettes} color={palette.green} />
+        <SummaryCard label="Dépenses" value={data.totalDepenses} color={palette.danger} />
+        <SummaryCard label="Solde" value={data.solde} color={data.solde >= 0 ? palette.green : palette.danger} highlight />
+      </div>
+      <div style={{ background: colors.white, border: "1px solid " + colors.gray[200], borderRadius: radius.lg, overflow: "hidden" }}>
+        {data.lines.map((l) => (
+          <div key={l.category} style={{ display: "flex", justifyContent: "space-between", padding: "10px 16px",
+            borderBottom: "1px solid " + colors.gray[100] }}>
+            <span style={{ fontSize: 13, color: colors.gray[900], fontWeight: 600, textTransform: "capitalize" }}>{l.category}</span>
+            <span style={{ fontSize: 13, color: colors.gray[600] }}>
+              {l.recettes > 0 && <span style={{ color: palette.green.text }}>+{fmt(l.recettes)}</span>}
+              {l.recettes > 0 && l.depenses > 0 && "  ·  "}
+              {l.depenses > 0 && <span style={{ color: palette.danger.solid }}>-{fmt(l.depenses)}</span>} FCFA
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function BalanceSheetPanel() {
+  const { data, isLoading } = useBalanceSheet();
+  if (isLoading) return <Loader2 size={18} className="animate-spin" color={palette.primary.solid} />;
+  if (!data || (data.actif.length === 0 && data.passif.length === 0)) return <EmptyPanel text="Aucune écriture pour établir un bilan." />;
+  const isBalanced = Math.abs(data.totalActif - data.totalPassif) < 0.01;
+
+  return (
+    <div>
+      <BalanceBadge isBalanced={isBalanced} labelOk="Bilan équilibré" labelKo="Bilan déséquilibré — anomalie à signaler" />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <AccountColumn title="Actif" rows={data.actif} total={data.totalActif} />
+        <AccountColumn title="Passif" rows={data.passif} total={data.totalPassif} />
+      </div>
+    </div>
+  );
+}
+
+function IncomeStatementPanel() {
+  const { data, isLoading } = useIncomeStatement();
+  if (isLoading) return <Loader2 size={18} className="animate-spin" color={palette.primary.solid} />;
+  if (!data || (data.charges.length === 0 && data.produits.length === 0)) return <EmptyPanel text="Aucune écriture pour établir un compte de résultat." />;
+
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10, marginBottom: 16 }}>
+        <SummaryCard label="Produits" value={data.totalProduits} color={palette.green} />
+        <SummaryCard label="Charges" value={data.totalCharges} color={palette.danger} />
+        <SummaryCard label="Résultat net" value={data.resultat} color={data.resultat >= 0 ? palette.green : palette.danger} highlight />
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <AccountColumn title="Charges" rows={data.charges.map((c) => ({ ...c, solde: c.montant }))} total={data.totalCharges} />
+        <AccountColumn title="Produits" rows={data.produits.map((p) => ({ ...p, solde: p.montant }))} total={data.totalProduits} />
+      </div>
+    </div>
+  );
+}
+
+function SummaryCard({ label, value, color, highlight }) {
+  return (
+    <div style={{ background: highlight ? color.solid : colors.white, border: highlight ? "none" : "1px solid " + colors.gray[200],
+      borderRadius: radius.lg, padding: 14 }}>
+      <p style={{ margin: 0, fontSize: 11, fontWeight: 600, color: highlight ? "rgba(255,255,255,0.85)" : colors.gray[500], textTransform: "uppercase" }}>{label}</p>
+      <p style={{ margin: "4px 0 0", fontSize: 17, fontWeight: 800, color: highlight ? colors.white : colors.gray[900] }}>
+        {value >= 0 ? "" : "-"}{fmt(Math.abs(value))} FCFA
+      </p>
+    </div>
+  );
+}
+
+function BalanceBadge({ isBalanced, labelOk, labelKo }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12, padding: "8px 12px",
+      borderRadius: radius.md, background: isBalanced ? palette.green[50] : palette.danger[50],
+      color: isBalanced ? palette.green.text : palette.danger.solid, fontSize: 12, fontWeight: 600, width: "fit-content" }}>
+      <ShieldCheck size={14} />
+      {isBalanced ? labelOk : labelKo}
+    </div>
+  );
+}
+
+function AccountColumn({ title, rows, total }) {
+  return (
+    <div>
+      <p style={{ margin: "0 0 8px", fontSize: 12, fontWeight: 700, color: colors.gray[600], textTransform: "uppercase" }}>{title}</p>
+      <div style={{ background: colors.white, border: "1px solid " + colors.gray[200], borderRadius: radius.lg, overflow: "hidden" }}>
+        {rows.map((r) => (
+          <div key={r.account_number} style={{ display: "flex", justifyContent: "space-between", padding: "9px 14px",
+            borderBottom: "1px solid " + colors.gray[100] }}>
+            <span style={{ fontSize: 12.5, color: colors.gray[900] }}>{r.account_number} — {r.label}</span>
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: colors.gray[900] }}>{fmt(r.solde)}</span>
+          </div>
+        ))}
+        <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 14px", background: colors.gray[50] }}>
+          <span style={{ fontSize: 12.5, fontWeight: 700, color: colors.gray[700] }}>Total</span>
+          <span style={{ fontSize: 12.5, fontWeight: 700, color: colors.gray[700] }}>{fmt(total)} FCFA</span>
+        </div>
       </div>
     </div>
   );
