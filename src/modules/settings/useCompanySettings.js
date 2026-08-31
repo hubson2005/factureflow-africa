@@ -22,24 +22,17 @@ export function useUpdateCompanyCompliance() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ companyId, ...fields }) => {
-      console.log("DEBUG mutationFn START", { companyId, fields });
-      try {
-        const { error } = await supabase
-          .from("companies")
-          .update({
-            country_code: fields.countryCode || null,
-            tax_regime: fields.taxRegime || null,
-            fiscal_number: fields.fiscalNumber || null,
-            rccm_number: fields.rccmNumber || null,
-            capital_social: fields.capitalSocial === "" ? null : fields.capitalSocial,
-          })
-          .eq("id", companyId);
-        console.log("DEBUG mutationFn AFTER AWAIT", { error });
-        if (error) throw error;
-      } catch (e) {
-        console.log("DEBUG mutationFn CAUGHT EXCEPTION", e);
-        throw e;
-      }
+      const { error } = await supabase
+        .from("companies")
+        .update({
+          country_code: fields.countryCode || null,
+          tax_regime: fields.taxRegime || null,
+          fiscal_number: fields.fiscalNumber || null,
+          rccm_number: fields.rccmNumber || null,
+          capital_social: fields.capitalSocial === "" ? null : fields.capitalSocial,
+        })
+        .eq("id", companyId);
+      if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["company"] }),
   });
