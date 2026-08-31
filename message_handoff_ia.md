@@ -819,3 +819,21 @@ date precise.
 Teste avec un scenario complet (vente 236000 encaissee, depense loyer
 80000) : les 3 rapports (recettes/depenses, compte de resultat, bilan)
 donnent des chiffres coherents entre eux au centime pres.
+
+## Nettoyage des 2 derniers points mineurs en attente (24/08/2026)
+
+Les deux points restants signales precedemment sont maintenant traites :
+
+1. **console.log de debug retires** (useCompanySettings.js,
+   useUpdateCompanyCompliance) -- 3 logs oublies en production
+   ("DEBUG mutationFn ..."), aucun autre residu ailleurs dans src/.
+
+2. **receive_purchase() corrige** (migration
+   fix_receive_purchase_track_stock_check) : ne cree plus de mouvement
+   de stock pour un produit avec track_stock=false, coherent avec le
+   comportement deja en place cote facturation
+   (sync_stock_on_invoice_item). Teste : reception mixte (produit
+   suivi + non suivi) -> les deux marques recus normalement, un seul
+   mouvement de stock genere (le bon).
+
+Plus aucun point mineur connu en attente a ce stade.
