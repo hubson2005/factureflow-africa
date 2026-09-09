@@ -6,15 +6,17 @@ import { sidebarNav } from "@/modules/dashboard/dashboard.data";
 import { Avatar } from "@/components/Primitives";
 import { supabase } from "@/supabase";
 
-const SIDEBAR_BG = "#F97316"; // orange
-const SIDEBAR_BORDER = "rgba(255,255,255,0.18)";
-const TEXT_ON_ORANGE = "#111111";
-const TEXT_ON_ORANGE_MUTED = "rgba(17,17,17,0.75)";
-const ACTIVE_BG = "#FFFFFF";
-const HOVER_BG = "rgba(255,255,255,0.18)";
-const SECTION_TITLE_COLOR = "rgba(255,255,255,0.85)"; // lisible sur fond orange
-const SCROLLBAR_THUMB = "rgba(255,255,255,0.35)";
-const SCROLLBAR_THUMB_HOVER = "rgba(255,255,255,0.55)";
+const SIDEBAR_BG = "#FAF6F0"; // blanc cassé
+const SIDEBAR_BORDER = "rgba(17,17,17,0.08)";
+const ACTIVE_BG = "#F97316"; // orange plein sur l'item actif
+const TEXT_ON_ORANGE = "#FFFFFF"; // texte de l'item actif (fond orange plein)
+const TEXT_ON_ORANGE_MUTED = "rgba(17,17,17,0.6)"; // texte secondaire (profil, etc.)
+const TEXT_DEFAULT = "#4A4038"; // texte des items inactifs sur fond blanc cassé
+const ICON_DEFAULT = "#8A7A6B"; // icônes des items inactifs
+const HOVER_BG = "rgba(17,17,17,0.05)";
+const SECTION_TITLE_COLOR = "#B08A63"; // lisible sur fond blanc cassé
+const SCROLLBAR_THUMB = "rgba(17,17,17,0.15)";
+const SCROLLBAR_THUMB_HOVER = "rgba(17,17,17,0.3)";
 
 // Meme logique fiable que BottomNav.tsx : ne depend d'aucune classe CSS externe
 // pour decider si on doit s'afficher ou non.
@@ -133,7 +135,7 @@ export function Sidebar() {
         .ff-sidebar-nav::-webkit-scrollbar-thumb:hover { background: ${SCROLLBAR_THUMB_HOVER}; }
       `}</style>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 8px", margin: "0 -14px 16px", background: colors.white }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 8px", margin: "0 -14px 16px", background: colors.white, borderBottom: `1px solid ${SIDEBAR_BORDER}` }}>
         <div style={{ padding: "0 14px", display: "flex", alignItems: "center", gap: 10 }}>
           <img src="/icon-192.png" alt="FactureFlow Africa" style={{ width: 36, height: 36, borderRadius: radius.md, flexShrink: 0, objectFit: "cover" }} />
           <div>
@@ -167,14 +169,14 @@ export function Sidebar() {
                   style={{
                     display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: radius.md,
                     background: isActive ? ACTIVE_BG : "transparent",
-                    color: isActive ? SIDEBAR_BG : TEXT_ON_ORANGE,
-                    boxShadow: isActive ? "0 2px 6px rgba(0,0,0,0.18)" : "none",
+                    color: isActive ? TEXT_ON_ORANGE : TEXT_DEFAULT,
+                    boxShadow: isActive ? "0 2px 6px rgba(249,115,22,0.28)" : "none",
                     fontSize: 13.5, fontWeight: 600, textDecoration: "none",
                   }}
                   onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = HOVER_BG; }}
                   onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
                 >
-                  {Icon && <Icon size={17} color={isActive ? SIDEBAR_BG : "#FFFFFF"} />}
+                  {Icon && <Icon size={17} color={isActive ? TEXT_ON_ORANGE : ICON_DEFAULT} />}
                   {LABEL_OVERRIDES[item.label] ?? item.label}
                   {item.badge && <span style={{ marginLeft: "auto", fontSize: 9.5, fontWeight: 700, color: palette.green.solid, background: colors.white, padding: "2px 6px", borderRadius: radius.full }}>{item.badge}</span>}
                 </Link>
@@ -195,12 +197,12 @@ export function Sidebar() {
         >
           <Avatar initials="HK" color="gray" size={34} />
           <div style={{ flex: 1 }}>
-            <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: TEXT_ON_ORANGE }}>Hubert K.</p>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: TEXT_DEFAULT }}>Hubert K.</p>
             <p style={{ margin: 0, fontSize: 11, color: TEXT_ON_ORANGE_MUTED }}>Administrateur</p>
           </div>
           <ChevronDown
             size={14}
-            color={TEXT_ON_ORANGE}
+            color={TEXT_DEFAULT}
             style={{ transform: menuOpen ? "rotate(180deg)" : "none", transition: "transform .15s" }}
           />
         </div>

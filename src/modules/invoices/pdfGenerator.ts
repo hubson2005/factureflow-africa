@@ -116,6 +116,29 @@ const FONT_MAP: Record<string, string> = {
   // Helvetica (rendu propre et universellement lisible).
 };
 
+// --- Styles par thème -------------------------------------------------
+// Chaque thème pilote : le style du bandeau d'en-tête (plein / contour /
+// minimal), le rayon des coins arrondis des blocs, la hauteur du bandeau,
+// et la casse du titre "FACTURE". C'est ce qui manquait : le champ
+// `theme` était stocké et transmis, mais jamais lu par le moteur de rendu.
+export interface ThemeStyle {
+  headerStyle: "solid" | "outline" | "minimal";
+  corner: number;       // rayon des coins arrondis (mm)
+  headerHeight: number; // hauteur du bandeau d'en-tête (mm)
+  upperCaseTitle: boolean;
+}
+
+const THEME_STYLES: Record<string, ThemeStyle> = {
+  minimal:       { headerStyle: "minimal", corner: 0, headerHeight: 22, upperCaseTitle: false },
+  professionnel: { headerStyle: "solid",   corner: 2, headerHeight: 30, upperCaseTitle: false },
+  premium:       { headerStyle: "solid",   corner: 4, headerHeight: 34, upperCaseTitle: true },
+  corporate:     { headerStyle: "outline", corner: 0, headerHeight: 30, upperCaseTitle: true },
+  moderne:       { headerStyle: "solid",   corner: 6, headerHeight: 30, upperCaseTitle: false },
+  africain:      { headerStyle: "solid",   corner: 2, headerHeight: 30, upperCaseTitle: false },
+  luxe:          { headerStyle: "outline", corner: 3, headerHeight: 32, upperCaseTitle: true },
+};
+const DEFAULT_THEME_STYLE = THEME_STYLES.professionnel;
+
 function hexToRgb(hex: string): [number, number, number] {
   const clean = hex.replace("#", "");
   const bigint = parseInt(clean.length === 3
@@ -160,6 +183,7 @@ async function buildInvoiceDoc(data: InvoicePDFData): Promise<jsPDF> {
   const tpl = { ...DEFAULT_TEMPLATE, ...(data.template || {}) };
   const t = I18N[tpl.language === "en" ? "en" : "fr"];
   const cols = tpl.visibleColumns || DEFAULT_TEMPLATE.visibleColumns!;
+  const themeStyle = THEME_STYLES[tpl.theme || ""] || DEFAULT_THEME_STYLE;
 
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const W = 210;
@@ -200,9 +224,26 @@ async function buildInvoiceDoc(data: InvoicePDFData): Promise<jsPDF> {
     return layout[key] || { x: fallbackX, y: fallbackY };
   }
 
-  // HEADER
-  doc.setFillColor(...PR);
-  doc.rect(0, 0, W, 30, "F");
+  // HEADER — le style (plein / contour / minimal) et la hauteur dépendent
+  // désormais du thème sélectionné.
+  if (themeStyle.headerStyle === "solid") {
+    doc.setFillColor(...PR);
+    doc.rect(0, 0, W, themeStyle.headerHeight, "F");
+  } else if (themeStyle.headerStyle === "outline") {
+    doc.setDrawColor(...PR);
+    doc.setLineWidth(1);
+    doc.line(0, themeStyle.headerHeight, W, themeStyle.headerHeight);
+  } else {
+    // minimal : pas de bandeau plein, juste un fin trait sous l'en-tête
+    doc.setDrawColor(...AC);
+    doc.setLineWidth(0.3);
+    doc.line(10, themeStyle.headerHeight - 6, W - 10, themeStyle.headerHeight - 6);
+  }
+
+  // Sur les thèmes sans bandeau plein (outline / minimal), le texte de
+  // l'en-tête doit rester lisible sur fond blanc : on bascule sur la
+  // couleur secondaire au lieu du blanc.
+  const headerTextColor = themeStyle.headerStyle === "solid" ? WH : SD;
 
   const logoDataUrl = tpl.logoUrl ? await loadImageAsDataUrl(tpl.logoUrl) : null;
   const logoPos = tpl.useCustomLayout
@@ -220,15 +261,15 @@ async function buildInvoiceDoc(data: InvoicePDFData): Promise<jsPDF> {
   if (logoDataUrl) {
     doc.addImage(logoDataUrl, "PNG", logoX, logoY, 16, 16);
   } else {
-    doc.setFillColor(...WH);
-    doc.roundedRect(logoX, logoY, 16, 16, 2, 2, "F");
+    doc.setFillColor(...(themeStyle.headerStyle === "solid" ? WH : LG));
+    doc.roundedRect(logoX, logoY, 16, 16, Math.min(themeStyle.corner, 4), Math.min(themeStyle.corner, 4), "F");
     doc.setFont(fontName, "bold");
     doc.setFontSize(11);
     doc.setTextColor(...PR);
     doc.text("F", logoX + 8, logoY + 11, { align: "center" });
   }
 
-  doc.setTextColor(...WH);
+  doc.setTextColor(...headerTextColor);
   doc.setFontSize(12);
   doc.setFont(fontName, "bold");
   doc.text(data.companyName ?? "Mon Entreprise", textX, logoY + 7);
@@ -247,11 +288,12 @@ async function buildInvoiceDoc(data: InvoicePDFData): Promise<jsPDF> {
     doc.restoreGraphicsState();
   }
 
-  // Titre FACTURE
+  // Titre FACTURE — casse dépendante du thème (ex: Premium/Corporate/Luxe en majuscules)
+  const invoiceTitle = themeStyle.upperCaseTitle ? t.invoice.toUpperCase() : t.invoice;
   doc.setTextColor(...SD);
   doc.setFontSize(22);
   doc.setFont(fontName, "bold");
-  doc.text(t.invoice, 10, 46);
+  doc.text(invoiceTitle, 10, 46);
 
   doc.setFontSize(9);
   doc.setFont(fontName, "normal");
@@ -272,13 +314,13 @@ async function buildInvoiceDoc(data: InvoicePDFData): Promise<jsPDF> {
   doc.setLineWidth(0.6);
   doc.line(10, 58, 200, 58);
 
-  // Blocs DE / A
+  // Blocs DE / A — coins arrondis pilotés par le thème
   const companyInfoPos = blockPos("company_info", 10, 63);
   const clientInfoX = 112, clientInfoY = 63; // le bloc client reste fixe (non listé dans le cahier des charges)
 
   doc.setFillColor(...LG);
-  doc.roundedRect(companyInfoPos.x, companyInfoPos.y, 88, 34, 2, 2, "F");
-  doc.roundedRect(clientInfoX, clientInfoY, 88, 34, 2, 2, "F");
+  doc.roundedRect(companyInfoPos.x, companyInfoPos.y, 88, 34, themeStyle.corner, themeStyle.corner, "F");
+  doc.roundedRect(clientInfoX, clientInfoY, 88, 34, themeStyle.corner, themeStyle.corner, "F");
 
   doc.setFontSize(7);
   doc.setFont(fontName, "bold");
@@ -365,7 +407,7 @@ async function buildInvoiceDoc(data: InvoicePDFData): Promise<jsPDF> {
   const totalsBoxHeight = 14 + tvaLineCount * 9 + 4; // ligne sous-total + N lignes TVA + marge avant le bandeau total
 
   doc.setFillColor(...LG);
-  doc.roundedRect(totalsPos.x, totalsPos.y, 80, totalsBoxHeight, 2, 2, "F");
+  doc.roundedRect(totalsPos.x, totalsPos.y, 80, totalsBoxHeight, themeStyle.corner, themeStyle.corner, "F");
 
   doc.setFontSize(9);
   doc.setFont(fontName, "normal");
@@ -396,7 +438,7 @@ async function buildInvoiceDoc(data: InvoicePDFData): Promise<jsPDF> {
   doc.line(totalsPos.x + 4, tvaLineY - 5, totalsPos.x + 78, tvaLineY - 5);
 
   doc.setFillColor(...PR);
-  doc.roundedRect(totalsPos.x, tvaLineY - 3, 80, 12, 2, 2, "F");
+  doc.roundedRect(totalsPos.x, tvaLineY - 3, 80, 12, themeStyle.corner, themeStyle.corner, "F");
   doc.setTextColor(...WH);
   doc.setFontSize(10);
   doc.setFont(fontName, "bold");
@@ -411,7 +453,7 @@ async function buildInvoiceDoc(data: InvoicePDFData): Promise<jsPDF> {
     const fneIsSimulated = data.fneStatus === "simulee";
     const fneBoxHeight = data.fneQrToken ? 28 : 16;
     doc.setFillColor(...(fneIsSimulated ? ([255, 251, 235] as [number, number, number]) : LG));
-    doc.roundedRect(10, cursorY, 100, fneBoxHeight, 2, 2, "F");
+    doc.roundedRect(10, cursorY, 100, fneBoxHeight, themeStyle.corner, themeStyle.corner, "F");
 
     let fneQrDataUrl: string | null = null;
     if (data.fneQrToken) {
@@ -433,37 +475,46 @@ async function buildInvoiceDoc(data: InvoicePDFData): Promise<jsPDF> {
   }
 
 
+  // Notes (colonne gauche) et Signature / QR code (colonne droite) partagent
+  // désormais la même ligne de départ (rowY) au lieu de s'empiler l'un après
+  // l'autre : cela évite le grand vide vertical qui faisait "flotter" le
+  // cachet en bas de page, et empêche le QR code et la signature de se
+  // chevaucher avec le bloc Notes (ils utilisaient tous la même position x=10).
+  const rowY = cursorY;
+
   if (data.notes) {
     doc.setFillColor(...LG);
-    doc.roundedRect(10, cursorY, 100, 16, 2, 2, "F");
+    doc.roundedRect(10, rowY, 100, 16, themeStyle.corner, themeStyle.corner, "F");
     doc.setFontSize(8);
     doc.setFont(fontName, "bold");
     doc.setTextColor(...AC);
-    doc.text(t.notes, 14, cursorY + 7);
+    doc.text(t.notes, 14, rowY + 7);
     doc.setFont(fontName, "normal");
     doc.setTextColor(...SD);
-    doc.text(data.notes, 14, cursorY + 13, { maxWidth: 92 });
-    cursorY += 22;
+    doc.text(data.notes, 14, rowY + 13, { maxWidth: 92 });
   }
 
-  // Signature
+  // Colonne droite : QR code puis signature, l'un sous l'autre si les deux
+  // sont actifs. En mise en page libre, chaque bloc garde sa position custom.
+  let rightColumnY = rowY;
+
+  if (tpl.showQrCode && tpl.qrCodeValue) {
+    const qrPos = tpl.useCustomLayout ? blockPos("qr_code", 120, rowY) : { x: 120, y: rightColumnY };
+    const qrDataUrl = await loadQrCodeDataUrl(tpl.qrCodeValue);
+    if (qrDataUrl) {
+      doc.addImage(qrDataUrl, "PNG", qrPos.x, qrPos.y, 22, 22);
+      if (!tpl.useCustomLayout) rightColumnY = qrPos.y + 22 + 6;
+    }
+  }
+
   if (tpl.showSignature && tpl.signatureUrl) {
-    const sigPos = blockPos("signature", 140, cursorY);
+    const sigPos = tpl.useCustomLayout ? blockPos("signature", 120, rowY) : { x: 120, y: rightColumnY };
     const sigDataUrl = await loadImageAsDataUrl(tpl.signatureUrl);
     if (sigDataUrl) {
       doc.addImage(sigDataUrl, "PNG", sigPos.x, sigPos.y, 50, 20);
       doc.setFontSize(7);
       doc.setTextColor(...AC);
       doc.text("Signature", sigPos.x, sigPos.y + 24);
-    }
-  }
-
-  // QR Code
-  if (tpl.showQrCode && tpl.qrCodeValue) {
-    const qrPos = blockPos("qr_code", 10, cursorY);
-    const qrDataUrl = await loadQrCodeDataUrl(tpl.qrCodeValue);
-    if (qrDataUrl) {
-      doc.addImage(qrDataUrl, "PNG", qrPos.x, qrPos.y, 22, 22);
     }
   }
 

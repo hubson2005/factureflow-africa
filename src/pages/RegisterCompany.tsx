@@ -53,6 +53,7 @@ export default function RegisterCompany() {
   const [currency, setCurrency] = useState(PAYS_OPTIONS[0].currency);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   function handleCountryChange(value) {
     setCountry(value);
@@ -63,6 +64,12 @@ export default function RegisterCompany() {
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
+
+    if (!acceptedTerms) {
+      setError("Vous devez accepter les CGS et la politique de données personnelles pour continuer.");
+      return;
+    }
+
     setLoading(true);
 
     const { error: rpcError } = await supabase.rpc("create_company_with_admin", {
@@ -146,12 +153,50 @@ export default function RegisterCompany() {
               </Field>
             </div>
 
-            <button type="submit" disabled={loading} style={{
+            <label style={{
+              display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer",
+              fontSize: 12.5, lineHeight: 1.5, color: P.gray[600], marginTop: 2,
+            }}>
+              <input
+                type="checkbox"
+                checked={acceptedTerms}
+                onChange={(e) => setAcceptedTerms(e.target.checked)}
+                style={{
+                  marginTop: 2, width: 16, height: 16, flexShrink: 0, accentColor: P.primary.solid,
+                  cursor: "pointer",
+                }}
+              />
+              <span>
+                J'ai lu et accepte les{" "}
+                <a
+                  href="/terms-of-service"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  style={{ color: P.primary.solid, fontWeight: 600, textDecoration: "underline" }}
+                >
+                  CGS
+                </a>{" "}
+                et la{" "}
+                <a
+                  href="/privacy-policy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  style={{ color: P.primary.solid, fontWeight: 600, textDecoration: "underline" }}
+                >
+                  politique de données personnelles
+                </a>{" "}
+                de FactureFlow Africa
+              </span>
+            </label>
+
+            <button type="submit" disabled={loading || !acceptedTerms} style={{
               display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
               padding: "13px 20px", borderRadius: R.md, border: "none",
-              background: loading ? P.gray[200] : P.primary.solid,
-              color: loading ? P.gray[400] : P.white,
-              fontSize: 15, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer",
+              background: loading || !acceptedTerms ? P.gray[200] : P.primary.solid,
+              color: loading || !acceptedTerms ? P.gray[400] : P.white,
+              fontSize: 15, fontWeight: 700, cursor: loading || !acceptedTerms ? "not-allowed" : "pointer",
               fontFamily: font, marginTop: 6,
             }}>
               {loading ? <Loader2 size={18} className="animate-spin" /> : "Continuer vers le tableau de bord"}
