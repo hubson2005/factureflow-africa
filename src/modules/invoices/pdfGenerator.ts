@@ -33,6 +33,8 @@ export interface InvoiceTemplateConfig {
   visibleColumns?: string[]; // ex: ["reference","description","quantity","unit","tva","remise","unit_price","total"]
   showSignature?: boolean;
   signatureUrl?: string | null;
+  showCachet?: boolean;
+  cachetUrl?: string | null;
   showQrCode?: boolean;
   qrCodeType?: "paiement" | "telechargement" | "verification";
   qrCodeValue?: string; // URL ou contenu à encoder, fourni par l'appelant selon qrCodeType
@@ -120,10 +122,6 @@ const FONT_MAP: Record<string, string> = {
 };
 
 // --- Styles par thème -------------------------------------------------
-// Chaque thème pilote : le style du bandeau d'en-tête (plein / contour /
-// minimal), le rayon des coins arrondis des blocs, la hauteur du bandeau,
-// et la casse du titre "FACTURE". C'est ce qui manquait : le champ
-// `theme` était stocké et transmis, mais jamais lu par le moteur de rendu.
 export interface ThemeStyle {
   headerStyle: "solid" | "outline" | "minimal";
   corner: number;       // rayon des coins arrondis (mm)
@@ -193,11 +191,6 @@ async function buildInvoiceDoc(data: InvoicePDFData): Promise<jsPDF> {
   const fontName = FONT_MAP[tpl.fontFamily || "Inter"] || "helvetica";
   doc.setFont(fontName);
 
-  // TVA calculee par ligne (chaque ligne peut avoir son propre taux, cf.
-  // moteur TVA multi-pays), puis regroupee par taux pour l'affichage —
-  // au lieu d'un taux unique applique a tout le sous-total, qui masquait
-  // les cas ou plusieurs types de taux (normal/reduit/exonere) coexistent
-  // sur une meme facture.
   const defaultTvaRate = data.tvaRate ?? 0.18;
   const subtotal = data.items.reduce((s, i) => {
     const lineTotal = i.qty * i.unitPrice;
@@ -220,15 +213,11 @@ async function buildInvoiceDoc(data: InvoicePDFData): Promise<jsPDF> {
   const WH: [number, number, number] = [255, 255, 255];
   const LG: [number, number, number] = [245, 247, 247];
 
-  // Layout personnalisé (glisser-déposer) : résout la position d'un bloc,
-  // avec repli sur la position par défaut si non custom ou non définie.
   const layout: LayoutBlocks = tpl.useCustomLayout ? (tpl.layoutBlocks || {}) : {};
   function blockPos(key: keyof LayoutBlocks, fallbackX: number, fallbackY: number): LayoutBlockPosition {
     return layout[key] || { x: fallbackX, y: fallbackY };
   }
 
-  // HEADER — le style (plein / contour / minimal) et la hauteur dépendent
-  // désormais du thème sélectionné.
   if (themeStyle.headerStyle === "solid") {
     doc.setFillColor(...PR);
     doc.rect(0, 0, W, themeStyle.headerHeight, "F");
@@ -237,15 +226,11 @@ async function buildInvoiceDoc(data: InvoicePDFData): Promise<jsPDF> {
     doc.setLineWidth(1);
     doc.line(0, themeStyle.headerHeight, W, themeStyle.headerHeight);
   } else {
-    // minimal : pas de bandeau plein, juste un fin trait sous l'en-tête
     doc.setDrawColor(...AC);
     doc.setLineWidth(0.3);
     doc.line(10, themeStyle.headerHeight - 6, W - 10, themeStyle.headerHeight - 6);
   }
 
-  // Sur les thèmes sans bandeau plein (outline / minimal), le texte de
-  // l'en-tête doit rester lisible sur fond blanc : on bascule sur la
-  // couleur secondaire au lieu du blanc.
   const headerTextColor = themeStyle.headerStyle === "solid" ? WH : SD;
 
   const logoDataUrl = tpl.logoUrl ? await loadImageAsDataUrl(tpl.logoUrl) : null;
@@ -280,7 +265,6 @@ async function buildInvoiceDoc(data: InvoicePDFData): Promise<jsPDF> {
   doc.setFont(fontName, "normal");
   if (data.companyAddress) doc.text(data.companyAddress, textX, logoY + 14, { maxWidth: 90 });
 
-  // Filigrane (statut)
   if (tpl.watermarkEnabled && WATERMARK_LABELS[data.status]) {
     doc.saveGraphicsState();
     doc.setTextColor(...AC);
@@ -291,7 +275,6 @@ async function buildInvoiceDoc(data: InvoicePDFData): Promise<jsPDF> {
     doc.restoreGraphicsState();
   }
 
-  // Titre FACTURE — casse dépendante du thème (ex: Premium/Corporate/Luxe en majuscules)
   const invoiceTitle = themeStyle.upperCaseTitle ? t.invoice.toUpperCase() : t.invoice;
   doc.setTextColor(...SD);
   doc.setFontSize(22);
@@ -313,9 +296,8 @@ async function buildInvoiceDoc(data: InvoicePDFData): Promise<jsPDF> {
   doc.text(data.issueDate, 130, 47);
   doc.text(data.dueDate ?? "-", 175, 47);
 
-  // Blocs DE / A — coins arrondis pilotés par le thème
   const companyInfoPos = blockPos("company_info", 10, 63);
-  const clientInfoX = 112, clientInfoY = 63; // le bloc client reste fixe (non listé dans le cahier des charges)
+  const clientInfoX = 112, clientInfoY = 63;
 
   doc.setFillColor(...LG);
   doc.roundedRect(companyInfoPos.x, companyInfoPos.y, 88, 34, themeStyle.corner, themeStyle.corner, "F");
@@ -346,8 +328,6 @@ async function buildInvoiceDoc(data: InvoicePDFData): Promise<jsPDF> {
   if (data.clientPhone) { doc.text(data.clientPhone, clientInfoX + 4, dy2); dy2 += 5; }
   if (data.clientCity) doc.text(data.clientCity, clientInfoX + 4, dy2, { maxWidth: 80 });
 
-  // Colonnes dynamiques du tableau
-  // "description" n'a pas de largeur fixe : elle absorbe l'espace restant (colonne flexible).
   const colDefs: Record<string, { header: string; width?: number; halign: "left" | "center" | "right" }> = {
     reference: { header: t.ref, width: 18, halign: "left" },
     description: { header: t.description, halign: "left" },
@@ -403,7 +383,7 @@ async function buildInvoiceDoc(data: InvoicePDFData): Promise<jsPDF> {
 
   const tvaRatesUsed = Array.from(tvaByRate.entries()).filter(([, amount]) => amount !== 0 || tvaByRate.size === 1);
   const tvaLineCount = Math.max(tvaRatesUsed.length, 1);
-  const totalsBoxHeight = 14 + tvaLineCount * 9 + 4; // ligne sous-total + N lignes TVA + marge avant le bandeau total
+  const totalsBoxHeight = 14 + tvaLineCount * 9 + 4;
 
   doc.setFillColor(...LG);
   doc.roundedRect(totalsPos.x, totalsPos.y, 80, totalsBoxHeight, themeStyle.corner, themeStyle.corner, "F");
@@ -446,8 +426,6 @@ async function buildInvoiceDoc(data: InvoicePDFData): Promise<jsPDF> {
 
   let cursorY = tvaLineY + 5 + 20;
 
-  // Bloc FNE (Cote d'Ivoire) — element reglementaire, affiche des qu'une
-  // reference existe, independamment des reglages QR generiques du modele.
   if (data.fneReference && data.fneStatus && data.fneStatus !== "non_certifiee") {
     const fneIsSimulated = data.fneStatus === "simulee";
     const fneBoxHeight = data.fneQrToken ? 28 : 16;
@@ -473,12 +451,6 @@ async function buildInvoiceDoc(data: InvoicePDFData): Promise<jsPDF> {
     cursorY += fneBoxHeight + 6;
   }
 
-
-  // Notes (colonne gauche) et Signature / QR code (colonne droite) partagent
-  // désormais la même ligne de départ (rowY) au lieu de s'empiler l'un après
-  // l'autre : cela évite le grand vide vertical qui faisait "flotter" le
-  // cachet en bas de page, et empêche le QR code et la signature de se
-  // chevaucher avec le bloc Notes (ils utilisaient tous la même position x=10).
   const rowY = cursorY;
 
   if (data.notes) {
@@ -493,8 +465,6 @@ async function buildInvoiceDoc(data: InvoicePDFData): Promise<jsPDF> {
     doc.text(data.notes, 14, rowY + 13, { maxWidth: 92 });
   }
 
-  // Colonne droite : QR code puis signature, l'un sous l'autre si les deux
-  // sont actifs. En mise en page libre, chaque bloc garde sa position custom.
   let rightColumnY = rowY;
 
   if (tpl.showQrCode && tpl.qrCodeValue) {
@@ -506,9 +476,12 @@ async function buildInvoiceDoc(data: InvoicePDFData): Promise<jsPDF> {
     }
   }
 
+  let sigPos = { x: 120, y: rightColumnY };
+  let sigDataUrl: string | null = null;
+
   if (tpl.showSignature && tpl.signatureUrl) {
-    const sigPos = tpl.useCustomLayout ? blockPos("signature", 120, rowY) : { x: 120, y: rightColumnY };
-    const sigDataUrl = await loadImageAsDataUrl(tpl.signatureUrl);
+    sigPos = tpl.useCustomLayout ? blockPos("signature", 120, rowY) : { x: 120, y: rightColumnY };
+    sigDataUrl = await loadImageAsDataUrl(tpl.signatureUrl);
     if (sigDataUrl) {
       doc.addImage(sigDataUrl, "PNG", sigPos.x, sigPos.y, 50, 20);
       doc.setFontSize(7);
@@ -517,26 +490,32 @@ async function buildInvoiceDoc(data: InvoicePDFData): Promise<jsPDF> {
     }
   }
 
-  // ------------------------------------------------------------------
-  // Pied de page — Mentions légales
-  // ------------------------------------------------------------------
-  // Conforme à la maquette fournie : plus de bandeau plein orange, mais un
-  // simple filet orange horizontal suivi du texte des mentions légales en
-  // noir/gris, centré, réparti automatiquement sur autant de lignes que
-  // nécessaire (doc.splitTextToSize). Le champ "Coordonnées (pied de page)"
-  // est supprimé : tout (raison sociale, capital, siège social, téléphone,
-  // site web, email...) doit être saisi dans un seul champ "footerMentions",
-  // et la mise en page s'adapte seule à la longueur du texte.
+  // Cachet (tampon d'entreprise) : superposé sur le coin bas-droit de la
+  // signature si présente, sinon positionné seul. Pas de rotation : tampon
+  // droit, vu de face.
+  if (tpl.showCachet && tpl.cachetUrl) {
+    const cachetDataUrl = await loadImageAsDataUrl(tpl.cachetUrl);
+    if (cachetDataUrl) {
+      const cachetSize = 32;
+      const cachetX = sigDataUrl ? sigPos.x + 22 : sigPos.x + 9;
+      const cachetY = sigDataUrl ? sigPos.y - 4 : sigPos.y;
+      doc.saveGraphicsState();
+      (doc as any).setGState(new (doc as any).GState({ opacity: 0.88 }));
+      doc.addImage(cachetDataUrl, "PNG", cachetX, cachetY, cachetSize, cachetSize);
+      doc.restoreGraphicsState();
+    }
+  }
+
   const footerText = tpl.footerMentions || ("FactureFlow Africa - " + t.footer);
   doc.setFontSize(6.5);
   doc.setFont(fontName, "normal");
   const footerLines: string[] = doc.splitTextToSize(footerText, 190);
 
-  const footerLineHeight = 4;   // interligne entre chaque ligne de mentions légales
-  const footerTopPadding = 5;   // espace entre le filet orange et la 1re ligne de texte
-  const footerBottomMargin = 6; // marge sous la dernière ligne (bord de page)
+  const footerLineHeight = 4;
+  const footerTopPadding = 5;
+  const footerBottomMargin = 6;
   const footerBlockHeight = footerTopPadding + footerLines.length * footerLineHeight + footerBottomMargin;
-  const footerLineY = 297 - footerBlockHeight; // position verticale du filet orange, remonte si le texte est long
+  const footerLineY = 297 - footerBlockHeight;
 
   doc.setDrawColor(...PR);
   doc.setLineWidth(0.5);
@@ -560,8 +539,6 @@ export async function generateInvoicePDF(data: InvoicePDFData): Promise<void> {
   doc.save(data.code + ".pdf");
 }
 
-// Retourne une data URL (PDF encodé en base64) utilisable dans un <iframe> ou <embed>
-// pour l'aperçu en temps réel dans l'éditeur de modèles, sans déclencher de téléchargement.
 export async function generateInvoicePDFPreviewUrl(data: InvoicePDFData): Promise<string> {
   const doc = await buildInvoiceDoc(data);
   return doc.output("datauristring");
