@@ -475,37 +475,46 @@ async function buildInvoiceDoc(data: InvoicePDFData): Promise<jsPDF> {
   }
 
 
+  // Notes (colonne gauche) et Signature / QR code (colonne droite) partagent
+  // désormais la même ligne de départ (rowY) au lieu de s'empiler l'un après
+  // l'autre : cela évite le grand vide vertical qui faisait "flotter" le
+  // cachet en bas de page, et empêche le QR code et la signature de se
+  // chevaucher avec le bloc Notes (ils utilisaient tous la même position x=10).
+  const rowY = cursorY;
+
   if (data.notes) {
     doc.setFillColor(...LG);
-    doc.roundedRect(10, cursorY, 100, 16, themeStyle.corner, themeStyle.corner, "F");
+    doc.roundedRect(10, rowY, 100, 16, themeStyle.corner, themeStyle.corner, "F");
     doc.setFontSize(8);
     doc.setFont(fontName, "bold");
     doc.setTextColor(...AC);
-    doc.text(t.notes, 14, cursorY + 7);
+    doc.text(t.notes, 14, rowY + 7);
     doc.setFont(fontName, "normal");
     doc.setTextColor(...SD);
-    doc.text(data.notes, 14, cursorY + 13, { maxWidth: 92 });
-    cursorY += 22;
+    doc.text(data.notes, 14, rowY + 13, { maxWidth: 92 });
   }
 
-  // Signature
+  // Colonne droite : QR code puis signature, l'un sous l'autre si les deux
+  // sont actifs. En mise en page libre, chaque bloc garde sa position custom.
+  let rightColumnY = rowY;
+
+  if (tpl.showQrCode && tpl.qrCodeValue) {
+    const qrPos = tpl.useCustomLayout ? blockPos("qr_code", 120, rowY) : { x: 120, y: rightColumnY };
+    const qrDataUrl = await loadQrCodeDataUrl(tpl.qrCodeValue);
+    if (qrDataUrl) {
+      doc.addImage(qrDataUrl, "PNG", qrPos.x, qrPos.y, 22, 22);
+      if (!tpl.useCustomLayout) rightColumnY = qrPos.y + 22 + 6;
+    }
+  }
+
   if (tpl.showSignature && tpl.signatureUrl) {
-    const sigPos = blockPos("signature", 140, cursorY);
+    const sigPos = tpl.useCustomLayout ? blockPos("signature", 120, rowY) : { x: 120, y: rightColumnY };
     const sigDataUrl = await loadImageAsDataUrl(tpl.signatureUrl);
     if (sigDataUrl) {
       doc.addImage(sigDataUrl, "PNG", sigPos.x, sigPos.y, 50, 20);
       doc.setFontSize(7);
       doc.setTextColor(...AC);
       doc.text("Signature", sigPos.x, sigPos.y + 24);
-    }
-  }
-
-  // QR Code
-  if (tpl.showQrCode && tpl.qrCodeValue) {
-    const qrPos = blockPos("qr_code", 10, cursorY);
-    const qrDataUrl = await loadQrCodeDataUrl(tpl.qrCodeValue);
-    if (qrDataUrl) {
-      doc.addImage(qrDataUrl, "PNG", qrPos.x, qrPos.y, 22, 22);
     }
   }
 
