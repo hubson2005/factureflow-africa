@@ -25,7 +25,10 @@ export interface InvoiceTemplateConfig {
   headerLogoPosition?: "left" | "center" | "right";
   footerMentions?: string | null;
   footerConditions?: string | null;
-  footerCoordonnees?: string | null;
+  // footerCoordonnees a été supprimé : le texte de contact (adresse, tél,
+  // email, site web...) fait désormais partie de footerMentions, qui se
+  // replie automatiquement sur autant de lignes que nécessaire. Un seul
+  // champ à remplir côté formulaire, la mise en page s'adapte toute seule.
   footerReseauxSociaux?: string | null;
   visibleColumns?: string[]; // ex: ["reference","description","quantity","unit","tva","remise","unit_price","total"]
   showSignature?: boolean;
@@ -310,10 +313,6 @@ async function buildInvoiceDoc(data: InvoicePDFData): Promise<jsPDF> {
   doc.text(data.issueDate, 130, 47);
   doc.text(data.dueDate ?? "-", 175, 47);
 
-  doc.setDrawColor(...PR);
-  doc.setLineWidth(0.6);
-  doc.line(10, 58, 200, 58);
-
   // Blocs DE / A — coins arrondis pilotés par le thème
   const companyInfoPos = blockPos("company_info", 10, 63);
   const clientInfoX = 112, clientInfoY = 63; // le bloc client reste fixe (non listé dans le cahier des charges)
@@ -518,17 +517,40 @@ async function buildInvoiceDoc(data: InvoicePDFData): Promise<jsPDF> {
     }
   }
 
-  // Pied de page
-  doc.setFillColor(...PR);
-  doc.rect(0, 285, W, 12, "F");
-  doc.setTextColor(...WH);
+  // ------------------------------------------------------------------
+  // Pied de page — Mentions légales
+  // ------------------------------------------------------------------
+  // Conforme à la maquette fournie : plus de bandeau plein orange, mais un
+  // simple filet orange horizontal suivi du texte des mentions légales en
+  // noir/gris, centré, réparti automatiquement sur autant de lignes que
+  // nécessaire (doc.splitTextToSize). Le champ "Coordonnées (pied de page)"
+  // est supprimé : tout (raison sociale, capital, siège social, téléphone,
+  // site web, email...) doit être saisi dans un seul champ "footerMentions",
+  // et la mise en page s'adapte seule à la longueur du texte.
+  const footerText = tpl.footerMentions || ("FactureFlow Africa - " + t.footer);
   doc.setFontSize(6.5);
   doc.setFont(fontName, "normal");
-  const footerLine = tpl.footerMentions || ("FactureFlow Africa - " + t.footer);
-  doc.text(footerLine, 105, 290, { align: "center", maxWidth: 190 });
-  if (tpl.footerCoordonnees) {
-    doc.text(tpl.footerCoordonnees, 105, 294.5, { align: "center", maxWidth: 190 });
-  }
+  const footerLines: string[] = doc.splitTextToSize(footerText, 190);
+
+  const footerLineHeight = 4;   // interligne entre chaque ligne de mentions légales
+  const footerTopPadding = 5;   // espace entre le filet orange et la 1re ligne de texte
+  const footerBottomMargin = 6; // marge sous la dernière ligne (bord de page)
+  const footerBlockHeight = footerTopPadding + footerLines.length * footerLineHeight + footerBottomMargin;
+  const footerLineY = 297 - footerBlockHeight; // position verticale du filet orange, remonte si le texte est long
+
+  doc.setDrawColor(...PR);
+  doc.setLineWidth(0.5);
+  doc.line(10, footerLineY, W - 10, footerLineY);
+
+  doc.setTextColor(...SD);
+  doc.setFontSize(6.5);
+  doc.setFont(fontName, "normal");
+  footerLines.forEach((line, idx) => {
+    doc.text(line, 105, footerLineY + footerTopPadding + idx * footerLineHeight, {
+      align: "center",
+      maxWidth: 190,
+    });
+  });
 
   return doc;
 }
